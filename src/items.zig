@@ -1,5 +1,5 @@
 pub const Item = struct {
-    displayName: []u8, //
+    displayName: []u8,
     name: []u8,
     mod: []u8,
     id: []u8,
@@ -7,14 +7,14 @@ pub const Item = struct {
 };
 
 pub const DataValue = union(enum) {
-    int: i32, //
+    int: i32,
     float: f32,
     string: []const u8,
     boolean: bool,
 };
 
 pub const Data = struct {
-    name: []u8, //
+    name: []u8,
     type: []u8,
     data: DataValue,
 };

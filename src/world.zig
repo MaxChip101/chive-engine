@@ -1,1 +1,5 @@
-pub const World = struct {};
+const objects = @import("objects.zig");
+
+pub const World = struct {
+    components: objects.Component,
+};
