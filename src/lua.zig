@@ -4,6 +4,8 @@ const mem = std.mem;
 const io = std.io;
 const ascii = std.ascii;
 
+// NOTE: add parsing and ast stuff
+
 pub const Script = struct {
     allocator: mem.Allocator,
     source: []const u8,
@@ -40,7 +42,7 @@ pub const Script = struct {
         self.*.content = try file.readToEndAlloc(self.allocator, file_size);
     }
 
-    pub fn lexer(self: *Self) !void {
+    pub fn tokenize(self: *Self) !void {
         while (self.peek(0)) |char| {
             switch (char) {
                 ' ', '\t', '\r', '\n' => self.advance(),
