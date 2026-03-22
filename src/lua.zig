@@ -8,23 +8,132 @@ const ascii = std.ascii;
 
 pub const Script = struct {
     allocator: mem.Allocator,
+    tokenizer: Tokenizer,
+    parser: Parser,
+    ast: ASTGenerator,
+    interpereter: Interpereter,
+
+    const Self = @This();
+
+    pub fn init_from_path(allocator: mem.Allocator, source: []const u8) !Self {
+        const tokenizer: Tokenizer = .init_from_path(allocator, source);
+        const parser: Parser = .init(allocator);
+        const ast: ASTGenerator = .init(allocator);
+        const interpereter: Interpereter = .init(allocator);
+
+        return .{
+            .tokenizer = tokenizer,
+            .parser = parser,
+            .ast = ast,
+            .interpereter = interpereter,
+        };
+    }
+
+    pub fn init_from_content(allocator: mem.Allocator, content: []u8) !Self {
+        const tokenizer: Tokenizer = .init_from_content(allocator, content);
+        const parser: Parser = .init(allocator);
+        const ast: ASTGenerator = .init(allocator);
+        const interpereter: Interpereter = .init(allocator);
+
+        return .{
+            .tokenizer = tokenizer,
+            .parser = parser,
+            .ast = ast,
+            .interpereter = interpereter,
+        };
+    }
+
+    pub fn execute(self: *Self) !void {
+        self.tokenizer.tokenize();
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.tokenizer.deinit();
+        self.parser.deinit();
+        self.ast.deinit();
+        self.interpereter.deinit();
+    }
+};
+
+pub const Interpereter = struct {
+    allocator: mem.Allocator,
+
+    const Self = @This();
+
+    pub fn init(allocator: mem.Allocator) !Self {
+        return .{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+};
+
+pub const ASTGenerator = struct {
+    allocator: mem.Allocator,
+
+    const Self = @This();
+
+    pub fn init(allocator: mem.Allocator) !Self {
+        return .{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+};
+
+pub const Parser = struct {
+    allocator: mem.Allocator,
+    tokenns: []const Token,
+    current: usize = 0,
+
+    const Self = @This();
+
+    pub fn init(allocator: mem.Allocator) !Self {
+        return .{
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        _ = self;
+    }
+};
+
+pub const Tokenizer = struct {
+    allocator: mem.Allocator,
     source: []const u8,
     content: []u8,
     tokens: std.ArrayList(Token),
-    line: usize,
-    column: usize,
-    index: usize,
+    line: usize = 1,
+    column: usize = 1,
+    index: usize = 0,
     const Self = @This();
 
-    pub fn init(allocator: mem.Allocator, source: []const u8) !Self {
-        const content = try allocator.alloc(u8, 0);
+    pub fn init_from_path(allocator: mem.Allocator, source: []const u8) !Self {
+        var file = try fs.openFileAbsolute(source, .{});
+        defer file.close();
+
+        const file_size = try file.getEndPos();
+        const content = try file.readToEndAlloc(allocator, file_size);
         return .{
             .allocator = allocator,
             .source = source,
             .content = content,
-            .line = 1,
-            .column = 1,
-            .index = 0,
+            .tokens = std.ArrayList(Token).init(allocator),
+        };
+    }
+
+    pub fn init_from_content(allocator: mem.Allocator, content: []u8) !Self {
+        return .{
+            .allocator = allocator,
+            .source = "",
+            .content = content,
             .tokens = std.ArrayList(Token).init(allocator),
         };
     }
@@ -32,14 +141,6 @@ pub const Script = struct {
     pub fn deinit(self: *Self) void {
         if (self.content.len > 0) self.allocator.free(self.content);
         self.tokens.deinit();
-    }
-
-    pub fn read(self: *Self) !void {
-        var file = try fs.openFileAbsolute(self.source, .{});
-        defer file.close();
-
-        const file_size = try file.getEndPos();
-        self.*.content = try file.readToEndAlloc(self.allocator, file_size);
     }
 
     pub fn tokenize(self: *Self) !void {
@@ -94,6 +195,7 @@ pub const Script = struct {
             ']' => token_type = .RightBracket,
             ',' => token_type = .Comma,
             ';' => token_type = .Semicolon,
+            ':' => token_type = .Colon,
             '=' => {
                 if (self.peek(1) == '=') {
                     token_type = .Equals;
@@ -106,7 +208,10 @@ pub const Script = struct {
                 if (self.peek(1) == '=') {
                     token_type = .NotEquals;
                     length = 2;
-                } else return error.InvalidCharacter;
+                } else {
+                    token_type = .UnkownSymbol;
+                    length = 1;
+                }
             },
             '<' => {
                 if (self.peek(1) == '=') {
@@ -124,7 +229,10 @@ pub const Script = struct {
                     token_type = .GreaterThan;
                 }
             },
-            else => return error.InvalidCharacter,
+            else => {
+                token_type = .UnkownSymbol;
+                length = 1;
+            },
         }
         try self.*.tokens.append(.{ .type = token_type, .value = self.content[start_index .. start_index + length], .line = self.line });
         self.advance_by(length);
@@ -146,6 +254,15 @@ pub const Script = struct {
             else if (mem.eql(u8, value, "end")) .End //
             else if (mem.eql(u8, value, "nil")) .NilLiteral //
             else if (mem.eql(u8, value, "true") or mem.eql(u8, value, "false")) .BooleanLiteral //
+            else if (mem.eql(u8, value, "and")) .And //
+            else if (mem.eql(u8, value, "or")) .Or //
+            else if (mem.eql(u8, value, "not")) .Not //
+            else if (mem.eql(u8, value, "return")) .Return //
+            else if (mem.eql(u8, value, "for")) .For //
+            else if (mem.eql(u8, value, "do")) .Do //
+            else if (mem.eql(u8, value, "while")) .While //
+            else if (mem.eql(u8, value, "elseif")) .ElseIf //
+            else if (mem.eql(u8, value, "else")) .Else //
             else .Identifier;
 
         try self.*.tokens.append(.{
@@ -290,6 +407,7 @@ const TokenType = enum {
     Dot,
     Colon,
     Semicolon,
+    UnkownSymbol,
 
     Identifier,
     StringLiteral,
