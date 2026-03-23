@@ -25,7 +25,7 @@ pub fn main() !void {
 
     var game_struct: game.Game = try .init(allocator);
 
-    const script_path = try game_struct.path_from_binary("test.lua");
+    const script_path = try game_struct.path_from_binary("../test.lua");
 
     var script: lua.Script = try .init_from_path(allocator, script_path);
 

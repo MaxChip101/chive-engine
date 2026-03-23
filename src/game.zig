@@ -5,7 +5,7 @@ const fs = std.fs;
 pub const Game = struct {
     allocator: mem.Allocator,
     binary_path: []u8,
-    binary_directory: []u8,
+    binary_directory: []const u8,
 
     const Self = @This();
 
@@ -22,7 +22,7 @@ pub const Game = struct {
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.binary_path);
     }
-
+    // TODO: fix the const string and variable string issue
     pub fn path_from_binary(self: *Self, file: []u8) ![]u8 {
         try fs.path.join(self.allocator, &[_][]const u8{ self.binary_directory, file });
     }
