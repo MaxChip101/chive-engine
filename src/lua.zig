@@ -16,12 +16,13 @@ pub const Script = struct {
     const Self = @This();
 
     pub fn init_from_path(allocator: mem.Allocator, source: []const u8) !Self {
-        const tokenizer: Tokenizer = .init_from_path(allocator, source);
-        const parser: Parser = .init(allocator);
-        const ast: ASTGenerator = .init(allocator);
-        const interpereter: Interpereter = .init(allocator);
+        const tokenizer: Tokenizer = try .init_from_path(allocator, source);
+        const parser: Parser = try .init(allocator);
+        const ast: ASTGenerator = try .init(allocator);
+        const interpereter: Interpereter = try .init(allocator);
 
         return .{
+            .allocator = allocator,
             .tokenizer = tokenizer,
             .parser = parser,
             .ast = ast,
@@ -44,7 +45,7 @@ pub const Script = struct {
     }
 
     pub fn execute(self: *Self) !void {
-        self.tokenizer.tokenize();
+        try self.tokenizer.tokenize();
     }
 
     pub fn deinit(self: *Self) void {
@@ -89,7 +90,7 @@ pub const ASTGenerator = struct {
 
 pub const Parser = struct {
     allocator: mem.Allocator,
-    tokenns: []const Token,
+    //tokens: []Token,
     current: usize = 0,
 
     const Self = @This();

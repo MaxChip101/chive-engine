@@ -29,10 +29,9 @@ pub fn main() !void {
 
     var script: lua.Script = try .init_from_path(allocator, script_path);
 
-    try script.read();
-    try script.tokenize();
+    try script.execute();
 
-    for (script.tokens.items) |token| {
+    for (script.tokenizer.tokens.items) |token| {
         std.debug.print("{s} | {any}\n", .{ token.value, token.type });
     }
 
