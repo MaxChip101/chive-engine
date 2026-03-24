@@ -10,7 +10,6 @@ pub const Script = struct {
     allocator: mem.Allocator,
     tokenizer: Tokenizer,
     parser: Parser,
-    ast: ASTGenerator,
     interpereter: Interpereter,
 
     const Self = @This();
@@ -18,14 +17,13 @@ pub const Script = struct {
     pub fn init_from_path(allocator: mem.Allocator, source: []const u8) !Self {
         const tokenizer: Tokenizer = try .init_from_path(allocator, source);
         const parser: Parser = try .init(allocator);
-        const ast: ASTGenerator = try .init(allocator);
         const interpereter: Interpereter = try .init(allocator);
+        try tokenizer.tokenize();
 
         return .{
             .allocator = allocator,
             .tokenizer = tokenizer,
             .parser = parser,
-            .ast = ast,
             .interpereter = interpereter,
         };
     }
@@ -33,19 +31,17 @@ pub const Script = struct {
     pub fn init_from_content(allocator: mem.Allocator, content: []u8) !Self {
         const tokenizer: Tokenizer = .init_from_content(allocator, content);
         const parser: Parser = .init(allocator);
-        const ast: ASTGenerator = .init(allocator);
         const interpereter: Interpereter = .init(allocator);
 
         return .{
             .tokenizer = tokenizer,
             .parser = parser,
-            .ast = ast,
             .interpereter = interpereter,
         };
     }
 
     pub fn execute(self: *Self) !void {
-        try self.tokenizer.tokenize();
+        self.interpereter.interperet();
     }
 
     pub fn deinit(self: *Self) void {
@@ -70,20 +66,8 @@ pub const Interpereter = struct {
     pub fn deinit(self: *Self) void {
         _ = self;
     }
-};
 
-pub const ASTGenerator = struct {
-    allocator: mem.Allocator,
-
-    const Self = @This();
-
-    pub fn init(allocator: mem.Allocator) !Self {
-        return .{
-            .allocator = allocator,
-        };
-    }
-
-    pub fn deinit(self: *Self) void {
+    pub fn interperet(self: *Self) !void {
         _ = self;
     }
 };
@@ -370,6 +354,17 @@ const Token = struct {
     value: []const u8,
     line: usize,
 };
+
+const ASTType = enum {
+    NumberLiteral,
+    StringLiteral,
+    IfExpression,
+    WhileExpression,
+    AdditiveExpression,
+    MultiplicativeExpression,
+};
+
+const ASTNode = union(ASTType) {};
 
 const TokenType = enum {
     Local,

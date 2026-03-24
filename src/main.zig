@@ -21,7 +21,7 @@ pub fn main() !void {
     const current_monitor = rl.getCurrentMonitor();
     const current_monitor_refresh_rate = rl.getMonitorRefreshRate(current_monitor);
 
-    //rl.setTargetFPS(currentMonitorRefreshRate);
+    rl.setTargetFPS(current_monitor_refresh_rate);
 
     var game_struct: game.Game = try .init(allocator);
 
