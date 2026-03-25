@@ -3,7 +3,7 @@ const fs = std.fs;
 const heap = std.heap;
 
 const rl = @import("raylib");
-const lua = @import("lua.zig");
+const zlua = @import("zlua");
 const game = @import("game.zig");
 
 pub fn main() !void {
@@ -25,15 +25,14 @@ pub fn main() !void {
 
     var game_struct: game.Game = try .init(allocator);
 
-    const script_path = try game_struct.path_from_binary("../test.lua");
+    const script_path = try game_struct.path_from_binaryZ("../test.lua");
 
-    var script: lua.Script = try .init_from_path(allocator, script_path);
-
-    try script.execute();
-
-    for (script.tokenizer.tokens.items) |token| {
-        std.debug.print("{s} | {any}\n", .{ token.value, token.type });
-    }
+    var lua = try zlua.Lua.init(allocator);
+    defer lua.deinit();
+    lua.openLibs();
+    lua.doFile(script_path) catch |err| {
+        std.debug.print("{any}", .{err});
+    };
 
     const string = try std.fmt.allocPrintZ(allocator, "screen number: {d}, screen refresh rate: {d}", .{ current_monitor, current_monitor_refresh_rate });
     defer allocator.free(string);

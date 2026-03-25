@@ -9,16 +9,23 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const lua_dep = b.dependency("zlua", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const raylib = raylib_dep.module("raylib"); // main raylib module
     const raygui = raylib_dep.module("raygui"); // raygui module
     const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
 
-    const exe = b.addExecutable(.{ //
-        .name = "mod_game", //
-        .root_source_file = b.path("src/main.zig"), //
-        .target = target, //
-        .optimize = optimize, //
+    const exe = b.addExecutable(.{
+        .name = "mod_game",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
     });
+
+    exe.root_module.addImport("zlua", lua_dep.module("zlua"));
 
     exe.linkLibrary(raylib_artifact);
     exe.root_module.addImport("raylib", raylib);

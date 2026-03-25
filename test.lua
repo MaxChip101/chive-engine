@@ -7,7 +7,7 @@ end
 local result = add(var, 4)
 
 if true and not false then
-   print("real")
+    print("real")
 end
 
 print(result)

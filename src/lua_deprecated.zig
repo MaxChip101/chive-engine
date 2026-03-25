@@ -88,6 +88,10 @@ pub const Parser = struct {
     pub fn deinit(self: *Self) void {
         _ = self;
     }
+
+    pub fn generate() !void {}
+
+    pub fn parse() !void {}
 };
 
 pub const Tokenizer = struct {
@@ -172,6 +176,8 @@ pub const Tokenizer = struct {
             '-' => token_type = .Minus,
             '*' => token_type = .Multiply,
             '/' => token_type = .Divide,
+            '%' => token_type = .Modulus,
+            '^' => token_type = .Exponent,
             '(' => token_type = .LeftParen,
             ')' => token_type = .RightParen,
             '{' => token_type = .LeftBrace,
@@ -181,6 +187,17 @@ pub const Tokenizer = struct {
             ',' => token_type = .Comma,
             ';' => token_type = .Semicolon,
             ':' => token_type = .Colon,
+            '.' => {
+                if (self.peek(1) == '.' and self.peek(2) == '.') {
+                    token_type = .VarArg;
+                    length = 3;
+                } else if (self.peek(1) == '.') {
+                    token_type = .Concat;
+                    length = 2;
+                } else {
+                    token_type = .Dot;
+                }
+            },
             '=' => {
                 if (self.peek(1) == '=') {
                     token_type = .Equals;
@@ -233,7 +250,8 @@ pub const Tokenizer = struct {
 
         const value = self.content[start_index..self.index];
 
-        const token_type: TokenType = if (mem.eql(u8, value, "local")) .Local else if (mem.eql(u8, value, "function")) .Function //
+        const token_type: TokenType = if (mem.eql(u8, value, "local")) .Local //
+            else if (mem.eql(u8, value, "function")) .Function //
             else if (mem.eql(u8, value, "if")) .If //
             else if (mem.eql(u8, value, "then")) .Then //
             else if (mem.eql(u8, value, "end")) .End //
@@ -248,6 +266,9 @@ pub const Tokenizer = struct {
             else if (mem.eql(u8, value, "while")) .While //
             else if (mem.eql(u8, value, "elseif")) .ElseIf //
             else if (mem.eql(u8, value, "else")) .Else //
+            else if (mem.eql(u8, value, "repeat")) .Repeat //
+            else if (mem.eql(u8, value, "until")) .Until //
+            else if (mem.eql(u8, value, "break")) .Break //
             else .Identifier;
 
         try self.*.tokens.append(.{
@@ -355,16 +376,63 @@ const Token = struct {
     line: usize,
 };
 
-const ASTType = enum {
+const ASTNodeType = enum {
     NumberLiteral,
     StringLiteral,
-    IfExpression,
-    WhileExpression,
-    AdditiveExpression,
-    MultiplicativeExpression,
+    BoolLiteral,
+    Identifier,
+    If,
+    While,
+    Binary,
+    Unary,
+    Block,
+    Return,
 };
 
-const ASTNode = union(ASTType) {};
+const ASTOperator = enum {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulus,
+    Exponent,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+    LessThanEqualTo,
+    GreaterThanEqualTo,
+    And,
+    Or,
+    Not,
+    Length,
+    Concat,
+};
+
+const ASTNode = struct {
+    type: ASTNodeType,
+    line: usize,
+    column: usize,
+    data: union(enum) {
+        literal: union(enum) {
+            number: f32,
+            string: []u8,
+            bool: bool,
+            nil: null,
+        },
+        identifier: []u8,
+        block: []*ASTNode,
+        binary_expr: struct {
+            operator: ASTOperator,
+            left: *ASTNode,
+            right: *ASTNode,
+        },
+        unary_expr: struct {
+            operator: ASTOperator,
+            operand: *ASTNode,
+        },
+    },
+};
 
 const TokenType = enum {
     Local,
@@ -377,7 +445,10 @@ const TokenType = enum {
     While,
     Do,
     For,
+    Repeat,
+    Until,
     Return,
+    Break,
     And,
     Or,
     Not,
@@ -386,6 +457,8 @@ const TokenType = enum {
     Minus,
     Multiply,
     Divide,
+    Modulus,
+    Exponent,
     Assign,
     Equals,
     NotEquals,
@@ -399,6 +472,9 @@ const TokenType = enum {
     RightBrace,
     LeftBracket,
     RightBracket,
+    Length,
+    Concat,
+    VarArg,
     Comma,
     Dot,
     Colon,
