@@ -1,3 +1,0 @@
-[submodule "minifb"]
-	path = minifb
-	url = https://github.com/emoon/minifb.git

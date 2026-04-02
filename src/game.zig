@@ -22,7 +22,7 @@ pub const Game = struct {
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.binary_path);
     }
-    // TODO: fix the const string and variable string issue
+
     pub fn path_from_binary(self: *Self, file: []const u8) ![]u8 {
         return try fs.path.join(self.allocator, &[_][]const u8{ self.binary_directory, file });
     }

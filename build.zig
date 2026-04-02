@@ -4,19 +4,20 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const raylib_dep = b.dependency("raylib", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
     const lua_dep = b.dependency("zlua", .{
         .target = target,
         .optimize = optimize,
     });
 
-    const raylib = raylib_dep.module("raylib"); // main raylib module
-    const raygui = raylib_dep.module("raygui"); // raygui module
-    const raylib_artifact = raylib_dep.artifact("raylib"); // raylib C library
+    const glfw_dep = b.dependency("zig_glfw", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const zgl = b.dependency("zgl", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe = b.addExecutable(.{
         .name = "mod_game",
@@ -25,11 +26,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    exe.root_module.addImport("zgl", zgl.module("zgl"));
+    exe.root_module.addImport("glfw", glfw_dep.module("glfw"));
     exe.root_module.addImport("zlua", lua_dep.module("zlua"));
-
-    exe.linkLibrary(raylib_artifact);
-    exe.root_module.addImport("raylib", raylib);
-    exe.root_module.addImport("raygui", raygui);
 
     b.installArtifact(exe);
     const run_cmd = b.addRunArtifact(exe);
