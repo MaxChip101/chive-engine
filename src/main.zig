@@ -74,17 +74,22 @@ const gl = @import("zgl");
 const vertexShaderSource =
     \\ #version 410 core
     \\ layout (location = 0) in vec3 aPos;
+    \\ layout (location = 1) in vec2 aTexCoord;
+    \\ out vec2 TexCoord;
     \\ void main()
     \\ {
     \\   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+    \\   TexCoord = aTexCoord;
     \\ }
 ;
 
 const fragmentShaderSource =
     \\ #version 410 core
+    \\ in vec2 TexCoord;
     \\ out vec4 FragColor;
+    \\ uniform sampler2D pixelBuffer;
     \\ void main() {
-    \\  FragColor = vec4(1.0, 1.0, 0.2, 1.0);   
+    \\   FragColor = texture(pixelBuffer, TexCoord);
     \\ }
 ;
 
@@ -92,6 +97,8 @@ const WindowSize = struct {
     pub const width: u32 = 800;
     pub const height: u32 = 600;
 };
+
+// game is going to be a raycaster with pixel buffer
 
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
@@ -168,9 +175,19 @@ pub fn main() !void {
         std.log.err("{s}", .{infoLog});
     }
 
-    const vertices = [9]f32{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
+    var vertices = [_]f32{
+        // positions        // texture coords
+        -1.0, 1.0, 0.0, 0.0, 1.0, // top left
+        -1.0, -1.0, 0.0, 0.0, 0.0, // bottom left
+        1.0, -1.0, 0.0, 1.0, 0.0, // bottom right
+        1.0, 1.0, 0.0, 1.0, 1.0, // top right
+    };
+
+    var indices = [_]u32{ 0, 1, 2, 0, 2, 3 };
+
     var VBO: [1]gl.Buffer = undefined;
     var VAO: [1]gl.VertexArray = undefined;
+    var EBO: [1]gl.Buffer = undefined;
 
     gl.genVertexArrays(&VAO);
     defer gl.deleteVertexArrays(&VAO);
@@ -178,23 +195,65 @@ pub fn main() !void {
     gl.genBuffers(&VBO);
     defer gl.deleteBuffers(&VBO);
 
+    gl.genBuffers(&EBO);
+    defer gl.deleteBuffers(&EBO);
+
     gl.bindVertexArray(VAO[0]);
     gl.bindBuffer(VBO[0], .array_buffer);
 
     gl.bufferData(gl.BufferTarget.array_buffer, f32, &vertices, gl.BufferUsage.static_draw);
 
-    gl.vertexAttribPointer(0, 3, gl.Type.float, false, 3 * @sizeOf(f32), 0);
+    gl.bindBuffer(EBO[0], .element_array_buffer);
+    gl.bufferData(gl.BufferTarget.element_array_buffer, u32, &indices, gl.BufferUsage.static_draw);
+
+    gl.vertexAttribPointer(0, 3, gl.Type.float, false, 5 * @sizeOf(f32), 0);
     gl.enableVertexAttribArray(0);
+
+    gl.vertexAttribPointer(1, 2, gl.Type.float, false, 5 * @sizeOf(f32), 3 * @sizeOf(f32));
+    gl.enableVertexAttribArray(1);
+
+    const pixels = try allocator.alloc(u8, WindowSize.width * WindowSize.height * 4);
+    defer allocator.free(pixels);
+
+    const texture = gl.Texture.gen();
+    gl.bindTexture(texture, .@"2d");
+
+    gl.textureImage2D(
+        .@"2d",
+        0,
+        .rgba,
+        WindowSize.width,
+        WindowSize.height,
+        .rgba,
+        .unsigned_byte,
+        pixels.ptr,
+    );
+
+    gl.texParameter(.@"2d", .min_filter, .nearest);
+    gl.texParameter(.@"2d", .mag_filter, .nearest);
 
     while (!window.shouldClose()) {
         processInput(window);
 
-        gl.clearColor(0.2, 0.3, 0.3, 1.0);
+        gl.bindTexture(texture, .@"2d");
+        gl.texSubImage2D(
+            .@"2d",
+            0,
+            0,
+            0,
+            WindowSize.width,
+            WindowSize.height,
+            .rgba,
+            .unsigned_byte,
+            pixels.ptr,
+        );
+
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(.{ .color = true, .stencil = false, .depth = false });
 
         gl.useProgram(shaderProgram);
         gl.bindVertexArray(VAO[0]);
-        gl.drawArrays(gl.PrimitiveType.triangles, 0, 3);
+        gl.drawElements(.triangles, 6, .unsigned_int, 0);
 
         window.swapBuffers();
         glfw.pollEvents();
