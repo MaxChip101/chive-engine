@@ -1,8 +1,13 @@
 const std = @import("std");
 const heap = std.heap;
 const mem = std.mem;
+const math = std.math;
 const glfw = @import("glfw");
 const gl = @import("zgl");
+
+const objects = @import("objects.zig");
+const world = @import("world.zig");
+const physics = @import("physics.zig");
 
 pub const Renderer = struct {
     width: u32,
@@ -201,6 +206,29 @@ pub const Renderer = struct {
         self.*.pixels[index + 1] = g;
         self.*.pixels[index + 2] = b;
         self.*.pixels[index + 3] = a;
+    }
+
+    pub fn drawCamera(self: *Self, camera: objects.Camera, game_struct: world.World) void {
+        for (0..self.width) |n| {
+            const angle: f32 = camera.rad_rotation.y - math.atan((@as(f32, @floatFromInt(n)) - @as(f32, @floatFromInt(self.width)) / 2.0) / camera.proj_dist);
+
+            const result = physics.raycaster_raycast(camera.origin, angle, game_struct);
+
+            const distance = result.?.distance;
+
+            if (distance >= math.inf(f32)) continue;
+
+            const cr: f32 = distance * math.cos(camera.rad_rotation.y - angle);
+            const wall_height: u32 = @min(@as(u32, @intFromFloat(@max(1.0, camera.proj_dist / cr))), self.height);
+
+            for (0..@as(usize, @intCast(wall_height))) |y| {
+                self.setPixel(n, @max(0, self.height / 2 - (@divTrunc(wall_height, 2)) + y), 255, 255, 255, 255);
+            }
+        }
+    }
+
+    pub fn clear(self: *Self) void {
+        @memset(self.*.pixels, 0);
     }
 
     pub fn render(self: *Self) void {

@@ -16,7 +16,7 @@ pub const World = struct {
         self.components.deinit();
     }
 
-    pub fn addComponent(self: *Self, component: objects.Component) void {
+    pub fn addComponent(self: *Self, component: objects.Component) !void {
         try self.components.append(component);
     }
 };
