@@ -2,6 +2,7 @@ const std = @import("std");
 const fs = std.fs;
 const heap = std.heap;
 const math = std.math;
+const time = std.time;
 
 const zlua = @import("zlua");
 const game = @import("game.zig");
@@ -16,6 +17,8 @@ pub fn main() !void {
 
     const screen_width = 800;
     const screen_height = 600;
+
+    const fps_milli: i64 = @divTrunc(1000, 120);
 
     var renderer_struct: renderer.Renderer = try .init(allocator, screen_width, screen_height);
     defer renderer_struct.deinit();
@@ -39,13 +42,23 @@ pub fn main() !void {
         std.debug.print("{any}", .{err});
     };
 
-    while (!renderer_struct.window.shouldClose()) {
-        renderer_struct.clear();
-        renderer_struct.drawCamera(camera, world_struct);
-        renderer_struct.render();
+    var last_time = time.milliTimestamp();
 
-        std.Thread.sleep(10_000_000);
-        camera.rotation.y += 1;
-        camera.update_rotation();
+    while (!renderer_struct.window.shouldClose()) {
+        const time_stamp = time.milliTimestamp();
+        if (time_stamp - last_time >= fps_milli) {
+            last_time = time_stamp;
+
+            renderer_struct.clear();
+            renderer_struct.drawCamera(camera, world_struct);
+            renderer_struct.render();
+            camera.rotation.y += 0.3;
+            camera.update_rotation();
+
+            update();
+        }
+        renderer_struct.update();
     }
 }
+
+fn update() void {}

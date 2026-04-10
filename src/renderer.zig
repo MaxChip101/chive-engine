@@ -223,6 +223,7 @@ pub const Renderer = struct {
 
             for (0..@as(usize, @intCast(wall_height))) |y| {
                 const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 50, 0, 255)));
+                //const fade: u8 = 0;
                 self.setPixel(n, @max(0, self.height / 2 - (@divTrunc(wall_height, 2)) + y), 255 - fade, 255 - fade, 255 - fade, 255);
             }
         }
@@ -233,8 +234,6 @@ pub const Renderer = struct {
     }
 
     pub fn render(self: *Self) void {
-        processInput(self.window);
-
         gl.bindTexture(self.texture, .@"2d");
         gl.texSubImage2D(
             .@"2d",
@@ -256,6 +255,10 @@ pub const Renderer = struct {
         gl.drawElements(.triangles, 6, .unsigned_int, 0);
 
         self.window.swapBuffers();
+    }
+
+    pub fn update(self: *Self) void {
+        processInput(self.window);
         glfw.pollEvents();
     }
 
