@@ -1,15 +1,34 @@
+const std = @import("std");
+const math = std.math;
+
 const vectors = @import("vectors.zig");
-const rl = @import("raylib");
 
 pub const Component = union(enum) {
-    sprite_object: struct {
-        transform: vectors.Transform,
-        sprite: rl.Texture2D,
+    camera: struct {
+        origin: vectors.Vec3,
+        rotation: f32,
+        fov: u8,
     },
-    camera_object: struct { position: vectors.Vec2, zoom: f32, camera: rl.Camera2D },
-    audio_source: struct {
-        position: vectors.Vec2,
-        audio: rl.Sound,
-        looping: bool,
-    },
+    wall: vectors.Transform3D,
+};
+
+pub const Camera = struct {
+    origin: vectors.Vec3,
+    rotation: vectors.Vec3,
+    orientation: vectors.Quaternion,
+    fov: f32,
+
+    rad_fov: f32,
+
+    const Self = @This();
+
+    pub fn init(origin: vectors.Vec3, rotation: vectors.Vec3, orientation: vectors.Quaternion, fov: f32) !Self {
+        return .{
+            .origin = origin,
+            .rotation = rotation,
+            .orientation = orientation,
+            .fov = fov,
+            .rad_fov = math.degreesToRadians(fov),
+        };
+    }
 };
