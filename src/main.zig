@@ -26,8 +26,9 @@ pub fn main() !void {
     var world_struct: world.World = try .init(allocator);
     defer world_struct.deinit();
 
-    var camera = objects.Camera.init(vectors.Vec3.create(0, 0, 6), vectors.Vec3.create(0, 90, 0), .{ .w = 0, .x = 0, .y = 0, .z = 0 }, 90, screen_width);
-    try world_struct.addComponent(.{ .wall = .{ .position = vectors.Vec3.create(-10, 0, 10), .scale = vectors.Vec3.create(10, 0, 10), .rotation = .{ .x = 0, .y = 0, .z = 0 }, .orientation = .{ .w = 0, .x = 0, .y = 0, .z = 0 } } });
+    var camera = objects.Camera.init(vectors.Vec3.create(0, 0, 0), vectors.Vec3.create(0, 0, 0), .{ .w = 0, .x = 0, .y = 0, .z = 0 }, 60, screen_width);
+    try world_struct.addComponent(.{ .wall = .{ .position = vectors.Vec3.create(-10, 0, 2), .scale = vectors.Vec3.create(10, 0, 2), .rotation = .{ .x = 0, .y = 0, .z = 0 }, .orientation = .{ .w = 0, .x = 0, .y = 0, .z = 0 } } });
+    try world_struct.addComponent(.{ .wall = .{ .position = vectors.Vec3.create(-10, 0, -2), .scale = vectors.Vec3.create(10, 0, -2), .rotation = .{ .x = 0, .y = 0, .z = 0 }, .orientation = .{ .w = 0, .x = 0, .y = 0, .z = 0 } } });
 
     const script_path = try game_struct.path_from_binaryZ("../test.lua");
 

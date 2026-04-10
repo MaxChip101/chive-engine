@@ -222,7 +222,8 @@ pub const Renderer = struct {
             const wall_height: u32 = @min(@as(u32, @intFromFloat(@max(1.0, camera.proj_dist / cr))), self.height);
 
             for (0..@as(usize, @intCast(wall_height))) |y| {
-                self.setPixel(n, @max(0, self.height / 2 - (@divTrunc(wall_height, 2)) + y), 255, 255, 255, 255);
+                const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 50, 0, 255)));
+                self.setPixel(n, @max(0, self.height / 2 - (@divTrunc(wall_height, 2)) + y), 255 - fade, 255 - fade, 255 - fade, 255);
             }
         }
     }
