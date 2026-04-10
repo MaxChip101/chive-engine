@@ -59,7 +59,7 @@ pub fn main() !void {
         const wall_height: u32 = @min(@as(u32, @intFromFloat(@max(1.0, proj_dist / cr))), screen_height);
 
         for (0..@as(usize, @intCast(wall_height))) |y| {
-            renderer_struct.setPixel(n, @max(0, half_height - (@divTrunc(wall_height, 2)) + y), 255 - @as(u8, @intFromFloat(60 * u)), 255, 255, 255);
+            renderer_struct.setPixel(n, @max(0, half_height - (@divTrunc(wall_height, 2)) + y), 255, 255, 255, 255);
         }
     }
 
