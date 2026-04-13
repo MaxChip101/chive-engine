@@ -10,13 +10,16 @@ const renderer = @import("renderer.zig");
 const world = @import("world.zig");
 const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
+const glfw = @import("glfw");
+
+const screen_width = 800;
+const screen_height = 600;
+
+var camera: objects.Camera = undefined;
 
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-
-    const screen_width = 800;
-    const screen_height = 600;
 
     const fps_milli: i64 = @divTrunc(1000, 120);
 
@@ -29,9 +32,12 @@ pub fn main() !void {
     var world_struct: world.World = try .init(allocator);
     defer world_struct.deinit();
 
-    var camera = objects.Camera.init(vectors.Vec3.create(0, 0, 0), vectors.Vec3.create(0, 0, 0), .{ .w = 0, .x = 0, .y = 0, .z = 0 }, 60, screen_width);
-    try world_struct.addComponent(.{ .wall = .{ .position = vectors.Vec3.create(-10, 0, 2), .scale = vectors.Vec3.create(10, 0, 2), .rotation = .{ .x = 0, .y = 0, .z = 0 }, .orientation = .{ .w = 0, .x = 0, .y = 0, .z = 0 } } });
-    try world_struct.addComponent(.{ .wall = .{ .position = vectors.Vec3.create(-10, 0, -2), .scale = vectors.Vec3.create(10, 0, -2), .rotation = .{ .x = 0, .y = 0, .z = 0 }, .orientation = .{ .w = 0, .x = 0, .y = 0, .z = 0 } } });
+    camera = .init(vectors.Vec3.create(0, 0, 0), vectors.Vec3.create(0, 0, 0), .{ .w = 0, .x = 0, .y = 0, .z = 0 }, 90, renderer_struct);
+
+    try world_struct.addWall(.{ .start = .create(-4, 0, -2), .end = .create(4, 0, -2), .height = 2, .material = .{ .color = .create(255, 128, 64, 255) } });
+    try world_struct.addWall(.{ .start = .create(-4, 0, 2), .end = .create(4, 0, 2), .height = 2, .material = .{ .color = .create(255, 128, 64, 255) } });
+    try world_struct.addWall(.{ .start = .create(-2, 0, -1), .end = .create(-2, 0, 1), .height = 1, .material = .{ .color = .create(255, 128, 64, 255) } });
+    try world_struct.addWall(.{ .start = .create(2, 0, 1), .end = .create(2, 2, -1), .height = 1, .material = .{ .color = .create(255, 128, 64, 255) } });
 
     const script_path = try game_struct.path_from_binaryZ("../test.lua");
 
@@ -44,21 +50,46 @@ pub fn main() !void {
 
     var last_time = time.milliTimestamp();
 
+    const walk_speed = 3.0;
+
+    const sensitivity = 100.0;
+
     while (!renderer_struct.window.shouldClose()) {
         const time_stamp = time.milliTimestamp();
+        const delta_time: f32 = @as(f32, @floatFromInt(time_stamp - last_time)) / 1000.0;
         if (time_stamp - last_time >= fps_milli) {
             last_time = time_stamp;
 
             renderer_struct.clear();
             renderer_struct.drawCamera(camera, world_struct);
             renderer_struct.render();
-            camera.rotation.y += 0.3;
-            camera.update_rotation();
-
-            update();
         }
+
+        if (glfw.Window.getKey(renderer_struct.window, glfw.Key.w) == glfw.Action.press) {
+            camera.position.z += walk_speed * math.sin(camera.rad_rotation.y) * delta_time;
+            camera.position.x += walk_speed * math.cos(camera.rad_rotation.y) * delta_time;
+        }
+        if (glfw.Window.getKey(renderer_struct.window, glfw.Key.a) == glfw.Action.press) {
+            camera.position.z += walk_speed * math.cos(camera.rad_rotation.y) * delta_time;
+            camera.position.x += -walk_speed * math.sin(camera.rad_rotation.y) * delta_time;
+        }
+        if (glfw.Window.getKey(renderer_struct.window, glfw.Key.s) == glfw.Action.press) {
+            camera.position.z += -walk_speed * math.sin(camera.rad_rotation.y) * delta_time;
+            camera.position.x += -walk_speed * math.cos(camera.rad_rotation.y) * delta_time;
+        }
+        if (glfw.Window.getKey(renderer_struct.window, glfw.Key.d) == glfw.Action.press) {
+            camera.position.z += -walk_speed * math.cos(camera.rad_rotation.y) * delta_time;
+            camera.position.x += walk_speed * math.sin(camera.rad_rotation.y) * delta_time;
+        }
+        if (glfw.Window.getKey(renderer_struct.window, glfw.Key.left) == glfw.Action.press) {
+            camera.rotation.y += sensitivity * delta_time;
+            camera.update_rotation();
+        }
+        if (glfw.Window.getKey(renderer_struct.window, glfw.Key.right) == glfw.Action.press) {
+            camera.rotation.y -= sensitivity * delta_time;
+            camera.update_rotation();
+        }
+
         renderer_struct.update();
     }
 }
-
-fn update() void {}

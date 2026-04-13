@@ -212,19 +212,25 @@ pub const Renderer = struct {
         for (0..self.width) |n| {
             const angle: f32 = camera.rad_rotation.y - math.atan((@as(f32, @floatFromInt(n)) - @as(f32, @floatFromInt(self.width)) / 2.0) / camera.proj_dist);
 
-            const result = physics.raycaster_raycast(camera.origin, angle, game_struct);
+            const result = physics.wall_raycast2D(.create(camera.position.x, camera.position.z), angle, game_struct);
+
+            if (result == null) continue;
 
             const distance = result.?.distance;
+            const pos = result.?.pos;
+            const wall = result.?.wall;
 
             if (distance >= math.inf(f32)) continue;
 
-            const cr: f32 = distance * math.cos(camera.rad_rotation.y - angle);
-            const wall_height: u32 = @min(@as(u32, @intFromFloat(@max(1.0, camera.proj_dist / cr))), self.height);
-
-            for (0..@as(usize, @intCast(wall_height))) |y| {
-                const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 50, 0, 255)));
-                //const fade: u8 = 0;
-                self.setPixel(n, @max(0, self.height / 2 - (@divTrunc(wall_height, 2)) + y), 255 - fade, 255 - fade, 255 - fade, 255);
+            const cr: f32 = @max(0.01, distance * math.cos(camera.rad_rotation.y - angle));
+            const f_height: f32 = @as(f32, @floatFromInt(self.height));
+            const wall_height: f32 = @min(@max(1.0, camera.proj_dist / cr), f_height);
+            const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 20, 0, 255)));
+            const middle = @as(usize, @intFromFloat(@max(0.0, f_height / 2 - (wall_height / 2))));
+            const vertical = @as(usize, (@intFromFloat(wall_height * (wall.start.y + pos * (wall.end.y - wall.start.y)))));
+            // try implementing vertical offsetted walls
+            for (0..@as(usize, @intFromFloat(wall_height * wall.height))) |y| {
+                self.setPixel(n, middle + y + vertical, 255 - fade, 255 - fade, 255 - fade, 255);
             }
         }
     }
@@ -258,7 +264,7 @@ pub const Renderer = struct {
     }
 
     pub fn update(self: *Self) void {
-        processInput(self.window);
+        _ = self;
         glfw.pollEvents();
     }
 
@@ -270,11 +276,5 @@ pub const Renderer = struct {
     fn framebuffer_size_callback(window: glfw.Window, width: u32, height: u32) void {
         _ = window;
         gl.viewport(0, 0, @intCast(width), @intCast(height));
-    }
-
-    fn processInput(window: glfw.Window) void {
-        if (glfw.Window.getKey(window, glfw.Key.escape) == glfw.Action.press) {
-            _ = glfw.Window.setShouldClose(window, true);
-        }
     }
 };

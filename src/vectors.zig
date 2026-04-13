@@ -6,6 +6,35 @@ pub const Vec2 = struct {
     y: f32,
 
     const Self = @This();
+
+    pub fn create(x: f32, y: f32) Self {
+        return .{ .x = x, .y = y };
+    }
+};
+
+pub const Color = struct {
+    r: u8,
+    g: u8,
+    b: u8,
+    a: u8,
+
+    const Self = @This();
+
+    pub fn create(r: u8, g: u8, b: u8, a: u8) Self {
+        return .{ .r = r, .g = g, .b = b, .a = a };
+    }
+};
+
+pub const Gradient = struct {
+    start: Color,
+    end: Color,
+    type: GradientType,
+};
+
+pub const GradientType = enum {
+    LeftRight,
+    UpDown,
+    Center,
 };
 
 pub const Vec3 = struct {
