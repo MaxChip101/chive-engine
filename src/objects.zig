@@ -20,8 +20,7 @@ pub const Material = union(enum) {
 };
 
 pub const Wall = struct {
-    start: vectors.Vec3,
-    end: vectors.Vec3,
+    line: vectors.Line3,
     height: f32,
     material: Material,
 };

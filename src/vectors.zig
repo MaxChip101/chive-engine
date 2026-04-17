@@ -20,6 +20,8 @@ pub const Color = struct {
 
     const Self = @This();
 
+    pub const zero: Self = .{ .r = 0, .g = 0, .b = 0, .a = 0 };
+
     pub fn create(r: u8, g: u8, b: u8, a: u8) Self {
         return .{ .r = r, .g = g, .b = b, .a = a };
     }
@@ -54,6 +56,41 @@ pub const Vec3 = struct {
 
     pub fn length_squared(self: *Self) f32 {
         return self.x * self.x + self.y * self.y + self.z * self.z;
+    }
+};
+
+pub const Line3 = struct {
+    start: Vec3,
+    end: Vec3,
+
+    const Self = @This();
+
+    pub fn create(start: Vec3, end: Vec3) Self {
+        return .{ .start = start, .end = end };
+    }
+
+    pub fn max_x(self: *Self) f32 {
+        return @max(self.start.x, self.end.x);
+    }
+
+    pub fn min_x(self: *Self) f32 {
+        return @min(self.start.x, self.end.x);
+    }
+
+    pub fn max_y(self: *Self) f32 {
+        return @max(self.start.y, self.end.y);
+    }
+
+    pub fn min_y(self: *Self) f32 {
+        return @min(self.start.y, self.end.y);
+    }
+
+    pub fn max_z(self: *Self) f32 {
+        return @max(self.start.z, self.end.z);
+    }
+
+    pub fn min_z(self: *Self) f32 {
+        return @min(self.start.z, self.end.z);
     }
 };
 
