@@ -22,7 +22,7 @@ pub const Renderer = struct {
     shaderProgram: gl.Program,
     VAO: [1]gl.VertexArray,
     VBO: [1]gl.Buffer,
-    ssbo: [1]gl.Buffer,
+    //ssbo: [1]gl.Buffer,
 
     const Self = @This();
 

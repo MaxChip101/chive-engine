@@ -26,7 +26,7 @@ pub const World = struct {
         try self.components.append(component);
     }
 
-    pub fn addWall(self: *Self, id: []u8, wall: objects.Wall) !void {
+    pub fn addWall(self: *Self, id: []const u8, wall: objects.Wall) !void {
         try self.walls.put(id, wall);
     }
 };
