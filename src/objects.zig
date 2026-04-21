@@ -19,6 +19,8 @@ pub const Material = union(enum) {
     //texture: type,
 };
 
+// walls can just only be textures
+
 pub const Wall = struct {
     line: vectors.Line3,
     height: f32,
