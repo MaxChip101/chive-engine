@@ -56,8 +56,38 @@ pub const Renderer = struct {
 
     const computeShaderSource =
         \\  #version 450 core
+        \\
+        \\  struct Camera {
+        \\      vec3 position;
+        \\      vec3 rotation;
+        \\      float fov;
+        \\  };
+        \\
+        \\  struct Texture {
+        \\      ivec2 dimensions;
+        \\      vec4 pixels[];
+        \\  };
+        \\
+        \\  struct Wall {
+        \\      vec3 start;
+        \\      vec3 end;
+        \\      Texture tex;
+        \\  };
+        \\
+        \\  struct Hit {
+        \\
+        \\  };
+        \\
+        \\  layout(std430, binding = 0) readonly buffer InputBuffer {
+        \\      Particle inputParticles[];
+        \\  };
+        \\
+        \\  layout(std430, binding = 1) writeonly buffer OutputBuffer {
+        \\      Particle outputParticles[];
+        \\  };
+        \\
         \\  layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-        \\ 
+        \\
         \\  void main() {
         \\      
         \\  }
@@ -262,7 +292,10 @@ pub const Renderer = struct {
         }
     }
 
-    pub fn render(self: *Self) void {
+    pub fn render(self: *Self, camera: objects.Camera, world_struct: world.World) void {
+        _ = camera;
+        _ = world_struct;
+
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(.{ .color = true, .stencil = false, .depth = false });
 
