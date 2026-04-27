@@ -87,7 +87,7 @@ pub fn main() !void {
             }
 
             //renderer_struct.drawCamera(camera, world_struct);
-            renderer_struct.render();
+            renderer_struct.render(camera, world_struct);
         }
 
         renderer_struct.update();

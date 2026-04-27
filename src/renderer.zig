@@ -43,9 +43,9 @@ pub const Renderer = struct {
     const fragmentShaderSource =
         \\  #version 450 core
         \\
-        \\  layout(std430, binding = 1) buffer HitBuffer {
-        \\      Column columns[];
-        \\  };
+        \\ // layout(std430, binding = 1) buffer HitBuffer {
+        \\ //     Column columns[];
+        \\ // };
         \\
         \\  out vec4 FragColor;
         \\
@@ -65,7 +65,7 @@ pub const Renderer = struct {
         \\
         \\  struct Texture {
         \\      ivec2 dimensions;
-        \\      vec4 pixels[];
+        \\      //vec4 pixels[];
         \\  };
         \\
         \\  struct Wall {
@@ -78,13 +78,13 @@ pub const Renderer = struct {
         \\
         \\  };
         \\
-        \\  layout(std430, binding = 0) readonly buffer InputBuffer {
-        \\      Particle inputParticles[];
-        \\  };
+        \\  // layout(std430, binding = 0) readonly buffer InputBuffer {
+        \\  //    Particle inputParticles[];
+        \\  // };
         \\
-        \\  layout(std430, binding = 1) writeonly buffer OutputBuffer {
-        \\      Particle outputParticles[];
-        \\  };
+        \\  // layout(std430, binding = 1) writeonly buffer OutputBuffer {
+        \\  //    Particle outputParticles[];
+        \\  // };
         \\
         \\  layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
         \\
