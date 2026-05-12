@@ -20,7 +20,6 @@ struct Camera {
 };
 
 struct RaycastResult {
-    bool hit;
     uint wall_id;
     float distance;
     float position;
@@ -37,6 +36,7 @@ layout(std430, binding = 1) readonly buffer CameraBuffer {
 
 uniform int screen_width;
 uniform int screen_height;
+uniform uint max_walls;
 
 layout(std430, binding = 2) buffer RaycastBuffer {
     RaycastResult result[];
@@ -52,28 +52,29 @@ void main() {
     const float x = gl_FragCoord.x;
     const float y = gl_FragCoord.y;
     const float height = float(screen_height);
-    const RaycastResult hit = result[uint(x)];
+    const float perspective = ((gl_FragCoord.y - height / 2.0) / camera.projection_distance) /* - tan(camera.rotation.x) */ ;
 
-    if (!hit.hit) {
-        FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        return;
+    // get array start & end for x coordinate range
+    // loop over array & blend as needed
+
+    vec4 pixel_color = vec4(0, 0, 0, 0);
+
+    for (uint i = uint(x) * max_walls; i < max_walls * (uint(x) + 1); i++) {
+        const RaycastResult hit = result[i];
+        if (isinf(hit.distance)) {
+            FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            continue;
+        }
+        const Wall wall = walls[hit.wall_id];
+
+        const float cr = hit.distance * cos(camera.rotation.y - hit.rotation);
+        const float world_y = camera.position.y + cr * perspective;
+        const float wall_y_bottom = wall.start.y + hit.position * (wall.end.y - wall.start.y);
+        const float wall_y_top = wall_y_bottom + wall.height;
+        const float shade = 1 / (0.4 * cr);
+        if (world_y >= wall_y_bottom && world_y <= wall_y_top) {
+            pixel_color = mix(pixel_color, vec4(1.0, 1.0, 1.0, 1.0), (pixel_color.w + 1.0) / 2);
+        }
     }
-
-    const Wall wall = walls[hit.wall_id];
-
-    const float cr = hit.distance * cos(camera.rotation.y - hit.rotation);
-
-    const float perspective = (gl_FragCoord.y - height / 2.0) / camera.projection_distance;
-    const float world_perspective = perspective - tan(camera.rotation.x);
-    const float world_y = camera.position.y + cr * world_perspective;
-
-    const float wall_y_bottom = wall.start.y + hit.position * (wall.end.y - wall.start.y);
-    const float wall_y_top = wall_y_bottom + wall.height;
-
-    const float shade = 1 / (0.4 * cr);
-    if (world_y >= wall_y_bottom && world_y <= wall_y_top) {
-        FragColor = vec4(shade, shade, shade, 1.0);
-    } else {
-        FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    }
+    FragColor = pixel_color;
 }

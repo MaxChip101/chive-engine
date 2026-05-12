@@ -43,7 +43,7 @@ pub const Renderer = struct {
 
     pub fn init(allocator: mem.Allocator, width: u32, height: u32, name: []const u8) !Self {
         var self: Self = undefined;
-
+        self.max_walls = 16;
         if (!glfw.init(.{})) {
             return error.GLFWInitFailed;
         }
@@ -168,7 +168,7 @@ pub const Renderer = struct {
         }}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
 
-        const result_buffer = try allocator.alloc(physics.RayCastResult, width);
+        const result_buffer = try allocator.alloc(physics.RayCastResult, width * self.max_walls);
 
         gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
@@ -268,12 +268,11 @@ pub const Renderer = struct {
         self.*.width = size.width;
         self.*.height = size.height;
         camera.updateProjectionDistance(self.width);
-        self.*.result_buffer = try self.allocator.realloc(self.*.result_buffer, self.width);
+        self.*.result_buffer = try self.allocator.realloc(self.*.result_buffer, self.width * self.max_walls);
         @memset(self.*.result_buffer, .{
             .distance = math.inf(f32),
             .position = 0,
             .wall_id = 0,
-            .hit = false,
             .rotation = 0,
         });
 
@@ -317,13 +316,13 @@ pub const Renderer = struct {
 
         const width_location_shader = gl.getUniformLocation(self.shaderProgram, "screen_width");
         const height_location_shader = gl.getUniformLocation(self.shaderProgram, "screen_height");
-        //const wall_count_location_shader = gl.getUniformLocation(self.shaderProgram, "wall_count");
+        const max_walls_location_shader = gl.getUniformLocation(self.shaderProgram, "max_walls");
 
         gl.useProgram(self.shaderProgram);
 
         gl.uniform1i(width_location_shader, @intCast(self.width));
         gl.uniform1i(height_location_shader, @intCast(self.height));
-        //gl.uniform1ui(wallCountLoc, @intCast(walls.len));
+        gl.uniform1ui(max_walls_location_shader, self.max_walls);
 
         gl.bindVertexArray(self.VAO);
         gl.drawArrays(.triangles, 0, 6);

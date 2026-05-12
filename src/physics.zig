@@ -14,7 +14,6 @@ const MAX_RAYCAST_WALL_COLLSION: comptime_int = 256;
 pub fn raycast2D() ?RayCastReturn {}
 
 pub const RayCastResult = extern struct {
-    hit: bool,
     wall_id: u32,
     distance: f32,
     position: f32,

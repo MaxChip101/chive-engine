@@ -22,7 +22,6 @@ struct Camera {
 };
 
 struct RaycastResult {
-    bool hit;
     uint wall_id;
     float distance;
     float position;
@@ -60,28 +59,32 @@ void main() {
     const float ray_x = camera.position.x + cos(angle);
     const float ray_y = camera.position.z + sin(angle);
 
-    uint id = 0;
-    float distance = 1.0 / 0.0;
-    float position = 0;
+    float last_biggest_distance = 0.0;
 
-    for (int i = 0; i < wall_count; i++) {
-        const Wall wall = walls[i];
-        const float denominator = (wall.start.x - wall.end.x) * (camera.position.z - ray_y) - (wall.start.z - wall.end.z) * (camera.position.x - ray_x);
-        if (denominator == 0.0) continue;
+    for (int i = 0; i < max_walls; i++) {
+        uint id = 0;
+        float distance = 1.0 / 0.0;
+        float position = 0;
 
-        const float t = ((wall.start.x - camera.position.x) * (camera.position.z - ray_y) - (wall.start.z - camera.position.z) * (camera.position.x - ray_x)) / denominator;
-        const float u = -((wall.start.x - wall.end.x) * (wall.start.z - camera.position.z) - (wall.start.z - wall.end.z) * (wall.start.x - camera.position.x)) / denominator;
+        for (int wall_id = 0; wall_id < wall_count; wall_id++) {
+            const Wall wall = walls[wall_id];
+            const float denominator = (wall.start.x - wall.end.x) * (camera.position.z - ray_y) - (wall.start.z - wall.end.z) * (camera.position.x - ray_x);
+            if (denominator == 0.0) continue;
 
-        if (!(t >= 0.0 && t <= 1.0 && u > 0.0 && u < distance)) continue;
+            const float t = ((wall.start.x - camera.position.x) * (camera.position.z - ray_y) - (wall.start.z - camera.position.z) * (camera.position.x - ray_x)) / denominator;
+            const float u = -((wall.start.x - wall.end.x) * (wall.start.z - camera.position.z) - (wall.start.z - wall.end.z) * (wall.start.x - camera.position.x)) / denominator;
 
-        distance = u;
-        position = t;
-        id = i;
+            if (!(t >= 0.0 && t <= 1.0 && u > 0.0 && u > last_biggest_distance && u < distance)) continue;
+
+            distance = u;
+            position = t;
+            id = wall_id;
+        }
+        if (!isinf(distance)) last_biggest_distance = distance;
+        uint result_pos = i + pixel_x * max_walls;
+        result[result_pos].wall_id = id;
+        result[result_pos].position = position;
+        result[result_pos].distance = distance;
+        result[result_pos].rotation = angle;
     }
-
-    result[pixel_x].hit = !isinf(distance);
-    result[pixel_x].wall_id = id;
-    result[pixel_x].position = position;
-    result[pixel_x].distance = distance;
-    result[pixel_x].rotation = angle;
 }
