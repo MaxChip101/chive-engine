@@ -11,7 +11,7 @@ const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
 
 pub const Renderer = struct {
-    width: u32,
+    width: u32, // either switch to aspect ratio or remove because window stores the width
     height: u32,
     allocator: mem.Allocator,
 
@@ -22,78 +22,28 @@ pub const Renderer = struct {
     shaderProgram: gl.Program,
     computeShader: gl.Shader,
     computeProgram: gl.Program,
-    VAO: [1]gl.VertexArray,
-    VBO: [1]gl.Buffer,
-    SSBO: [1]gl.Buffer,
+    VAO: gl.VertexArray,
+    VBO: gl.Buffer,
+    raycast_results: std.ArrayList(physics.RayCastResult),
+    wallSSBO: gl.Buffer,
+    cameraSSBO: gl.Buffer,
+    resultsSSBO: gl.Buffer,
+    result_buffer: []physics.RayCastResult,
+    max_walls: u16,
 
     const Self = @This();
 
     const max_compute_x_groups = 64;
 
-    const vertexShaderSource =
-        \\  #version 450 core
-        \\
-        \\  layout(location = 0) in vec2 aPos;
-        \\
-        \\  void main() {
-        \\      gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-        \\  }
-    ;
+    const vertexShaderSource = @embedFile("shaders/vertex.glsl");
 
-    const fragmentShaderSource =
-        \\  #version 450 core
-        \\
-        \\ // layout(std430, binding = 1) buffer HitBuffer {
-        \\ //     Column columns[];
-        \\ // };
-        \\
-        \\  out vec4 FragColor;
-        \\
-        \\  void main() {
-        \\      FragColor = vec4(gl_FragCoord.x / 500, 0.2, 1.0, 1.0);
-        \\  }
-    ;
+    const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
 
-    const computeShaderSource =
-        \\  #version 450 core
-        \\
-        \\  struct Camera {
-        \\      vec3 position;
-        \\      vec3 rotation;
-        \\      float fov;
-        \\  };
-        \\
-        \\  struct Texture {
-        \\      ivec2 dimensions;
-        \\      //vec4 pixels[];
-        \\  };
-        \\
-        \\  struct Wall {
-        \\      vec3 start;
-        \\      vec3 end;
-        \\      Texture tex;
-        \\  };
-        \\
-        \\  struct Hit {
-        \\
-        \\  };
-        \\
-        \\  // layout(std430, binding = 0) readonly buffer InputBuffer {
-        \\  //    Particle inputParticles[];
-        \\  // };
-        \\
-        \\  // layout(std430, binding = 1) writeonly buffer OutputBuffer {
-        \\  //    Particle outputParticles[];
-        \\  // };
-        \\
-        \\  layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
-        \\
-        \\  void main() {
-        \\      
-        \\  }
-    ;
+    const computeShaderSource = @embedFile("shaders/compute.glsl");
 
     pub fn init(allocator: mem.Allocator, width: u32, height: u32, name: []const u8) !Self {
+        var self: Self = undefined;
+
         if (!glfw.init(.{})) {
             return error.GLFWInitFailed;
         }
@@ -151,7 +101,6 @@ pub const Renderer = struct {
         }
 
         const shaderProgram = gl.createProgram();
-        std.debug.print("{any}", .{shaderProgram});
 
         gl.attachShader(shaderProgram, vertexShader);
         gl.attachShader(shaderProgram, fragmentShader);
@@ -199,43 +148,61 @@ pub const Renderer = struct {
             -1.0, 1.0, //
         };
 
-        var VBO: [1]gl.Buffer = undefined;
-        var VAO: [1]gl.VertexArray = undefined;
-        var SSBO: [1]gl.Buffer = undefined;
+        const VBO = gl.genBuffer();
+        const VAO = gl.genVertexArray();
 
-        gl.genVertexArrays(&VAO);
+        const wallSSBO = gl.genBuffer();
+        const cameraSSBO = gl.genBuffer();
+        const resultsSSBO = gl.genBuffer();
 
-        gl.genBuffers(&VBO);
+        gl.bindBuffer(wallSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Wall, &[_]objects.Wall{}, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 0, wallSSBO);
 
-        gl.genBuffers(&SSBO);
+        gl.bindBuffer(cameraSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{.{
+            .position = .{ .x = 0, .y = 0, .z = 0 },
+            .fov = 0,
+            .rotation = .{ .x = 0, .y = 0, .z = 0 },
+            .projection_distance = 0,
+        }}, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
 
-        gl.bindVertexArray(VAO[0]);
-        gl.bindBuffer(VBO[0], .array_buffer);
+        const result_buffer = try allocator.alloc(physics.RayCastResult, width);
+
+        gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 2, resultsSSBO);
+
+        gl.bindVertexArray(VAO);
+        gl.bindBuffer(VBO, .array_buffer);
 
         gl.bufferData(gl.BufferTarget.array_buffer, f32, &vertices, gl.BufferUsage.static_draw);
 
         gl.vertexAttribPointer(0, 3, gl.Type.float, false, 2 * @sizeOf(f32), 0);
         gl.enableVertexAttribArray(0);
 
-        gl.bindBufferBase(.shader_storage_buffer, 0, SSBO[0]);
+        gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
 
         gl.enable(.blend);
 
-        // enter parameters
-        return .{
-            .allocator = allocator,
-            .width = width,
-            .height = height,
-            .window = window,
-            .fragmentShader = fragmentShader,
-            .vertexShader = vertexShader,
-            .shaderProgram = shaderProgram,
-            .computeShader = computeShader,
-            .computeProgram = computeProgram,
-            .VAO = VAO,
-            .VBO = VBO,
-            .SSBO = SSBO,
-        };
+        self.allocator = allocator;
+        self.width = width;
+        self.height = height;
+        self.window = window;
+        self.fragmentShader = fragmentShader;
+        self.vertexShader = vertexShader;
+        self.shaderProgram = shaderProgram;
+        self.computeShader = computeShader;
+        self.computeProgram = computeProgram;
+        self.VAO = VAO;
+        self.VBO = VBO;
+        self.wallSSBO = wallSSBO;
+        self.cameraSSBO = cameraSSBO;
+        self.resultsSSBO = resultsSSBO;
+        self.result_buffer = result_buffer;
+
+        return self;
     }
 
     pub fn deinit(self: *Self) void {
@@ -244,69 +211,121 @@ pub const Renderer = struct {
         gl.deleteProgram(self.shaderProgram);
         gl.deleteShader(self.computeShader);
         gl.deleteProgram(self.computeProgram);
-        gl.deleteVertexArrays(&self.VAO);
-        gl.deleteBuffers(&self.VBO);
-        gl.deleteBuffers(&self.SSBO);
+        gl.deleteVertexArray(self.VAO);
+        gl.deleteBuffer(self.VBO);
+        gl.deleteBuffer(self.wallSSBO);
+        gl.deleteBuffer(self.cameraSSBO);
+        gl.deleteBuffer(self.resultsSSBO);
+        self.allocator.free(self.result_buffer);
         self.window.destroy();
         glfw.terminate();
     }
 
-    pub fn drawCamera(self: *Self, camera: objects.Camera, game_struct: world.World) void {
-        for (0..self.width) |n| {
-            const angle: f32 = camera.rad_rotation.y - math.atan((@as(f32, @floatFromInt(n)) - @as(f32, @floatFromInt(self.width)) / 2.0) / camera.proj_dist);
+    // pub fn drawCamera(self: *Self, camera: objects.Camera, game_struct: world.World) void {
+    //     for (0..self.width) |n| {
+    //         const angle: f32 = camera.rad_rotation.y - math.atan((@as(f32, @floatFromInt(n)) - @as(f32, @floatFromInt(self.width)) / 2.0) / camera.proj_dist);
 
-            const result = physics.wall_raycast2D(.create(camera.position.x, camera.position.z), angle, game_struct);
+    //         const result = physics.wall_raycast2D(.create(camera.position.x, camera.position.z), angle, game_struct);
 
-            if (result == null) continue;
-            for (result.?) |collisions| {
-                const distance = collisions.distance;
-                const pos = collisions.pos;
-                const wall = collisions.wall;
+    //         if (result == null) continue;
+    //         for (result.?) |collisions| {
+    //             const distance = collisions.distance;
+    //             const pos = collisions.pos;
+    //             const wall = collisions.wall;
 
-                if (distance >= math.inf(f32)) continue;
+    //             if (distance >= math.inf(f32)) continue;
 
-                const cr: f32 = @max(0.01, distance * math.cos(camera.rad_rotation.y - angle));
-                const f_height: f32 = @as(f32, @floatFromInt(self.height));
-                const wall_height: f32 = @min(@max(1.0, camera.proj_dist / cr), f_height);
-                //const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 20, 0, 255)));
-                const middle = @as(usize, @intFromFloat(@max(0.0, f_height / 2 - (wall_height / 2))));
-                const vertical = @as(usize, (@intFromFloat(wall_height * (wall.start.y + pos * (wall.end.y - wall.start.y)))));
-                // try implementing vertical offsetted walls
-                // switch to shader implementation
-                switch (wall.material) {
-                    .color => |color| {
-                        for (0..@as(usize, @intFromFloat(wall_height * wall.height))) |y| {
-                            //if (self.getPixel(n, middle + y + vertical).a == 0) {
-                            const back_pixel = self.getPixel(n, middle + y + vertical);
-                            const alpha: f32 = @as(f32, @floatFromInt(color.a)) / 255.0;
-                            const r = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.r)) * alpha) + (@as(f32, @floatFromInt(back_pixel.r)) * (1 - alpha))));
-                            const g = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.g)) * alpha) + (@as(f32, @floatFromInt(back_pixel.g)) * (1 - alpha))));
-                            const b = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.b)) * alpha) + (@as(f32, @floatFromInt(back_pixel.b)) * (1 - alpha))));
-                            self.setPixel(n, middle + y + vertical, .{ .r = r, .g = g, .b = b, .a = color.a });
-                            //}
-                        }
-                    },
-                    .gradient => {},
-                }
-            }
-        }
+    //             const cr: f32 = @max(0.01, distance * math.cos(camera.rad_rotation.y - angle));
+    //             const f_height: f32 = @as(f32, @floatFromInt(self.height));
+    //             const wall_height: f32 = @min(@max(1.0, camera.proj_dist / cr), f_height);
+    //             //const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 20, 0, 255)));
+    //             const middle = @as(usize, @intFromFloat(@max(0.0, f_height / 2 - (wall_height / 2))));
+    //             const vertical = @as(usize, (@intFromFloat(wall_height * (wall.start.y + pos * (wall.end.y - wall.start.y)))));
+    //             // try implementing vertical offsetted walls
+    //             // switch to shader implementation
+    //             switch (wall.material) {
+    //                 .color => |color| {
+    //                     for (0..@as(usize, @intFromFloat(wall_height * wall.height))) |y| {
+    //                         //if (self.getPixel(n, middle + y + vertical).a == 0) {
+    //                         const back_pixel = self.getPixel(n, middle + y + vertical);
+    //                         const alpha: f32 = @as(f32, @floatFromInt(color.a)) / 255.0;
+    //                         const r = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.r)) * alpha) + (@as(f32, @floatFromInt(back_pixel.r)) * (1 - alpha))));
+    //                         const g = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.g)) * alpha) + (@as(f32, @floatFromInt(back_pixel.g)) * (1 - alpha))));
+    //                         const b = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.b)) * alpha) + (@as(f32, @floatFromInt(back_pixel.b)) * (1 - alpha))));
+    //                         self.setPixel(n, middle + y + vertical, .{ .r = r, .g = g, .b = b, .a = color.a });
+    //                         //}
+    //                     }
+    //                 },
+    //                 .gradient => {},
+    //             }
+    //         }
+    //     }
+    // }
+
+    pub fn render_update(self: *Self, camera: *objects.Camera) !void {
+        const size = self.window.getFramebufferSize();
+        if (self.width == size.width and self.height == size.height) return;
+        self.*.width = size.width;
+        self.*.height = size.height;
+        camera.updateProjectionDistance(self.width);
+        self.*.result_buffer = try self.allocator.realloc(self.*.result_buffer, self.width);
+        @memset(self.*.result_buffer, .{
+            .distance = math.inf(f32),
+            .position = 0,
+            .wall_id = 0,
+            .hit = false,
+            .rotation = 0,
+        });
+
+        gl.bindBuffer(self.resultsSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, physics.RayCastResult, self.result_buffer, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 2, self.resultsSSBO);
+        gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
     }
 
-    pub fn render(self: *Self, camera: objects.Camera, world_struct: world.World) void {
-        _ = camera;
-        _ = world_struct;
+    pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) !void {
+        const walls = world_struct.walls.items;
+
+        try render_update(self, camera);
+
+        gl.bindBuffer(self.wallSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Wall, walls, .dynamic_draw);
+
+        gl.bindBuffer(self.cameraSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{camera.*}, .dynamic_draw);
+
+        gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
 
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(.{ .color = true, .stencil = false, .depth = false });
 
+        const width_location_compute = gl.getUniformLocation(self.computeProgram, "screen_width");
+        const height_location_compute = gl.getUniformLocation(self.computeProgram, "screen_height");
+        const wall_count_location_compute = gl.getUniformLocation(self.computeProgram, "wall_count");
+        const max_walls_location_compute = gl.getUniformLocation(self.computeProgram, "max_walls");
+
         gl.useProgram(self.computeProgram);
+
+        gl.uniform1i(width_location_compute, @intCast(self.width));
+        gl.uniform1i(height_location_compute, @intCast(self.height));
+        gl.uniform1ui(wall_count_location_compute, @intCast(walls.len));
+        gl.uniform1ui(max_walls_location_compute, self.max_walls);
+
         const groups_x = (self.width + (max_compute_x_groups - 1)) / max_compute_x_groups;
         gl.binding.dispatchCompute(groups_x, 1, 1);
         gl.binding.memoryBarrier(gl.binding.SHADER_STORAGE_BARRIER_BIT);
 
+        const width_location_shader = gl.getUniformLocation(self.shaderProgram, "screen_width");
+        const height_location_shader = gl.getUniformLocation(self.shaderProgram, "screen_height");
+        //const wall_count_location_shader = gl.getUniformLocation(self.shaderProgram, "wall_count");
+
         gl.useProgram(self.shaderProgram);
 
-        gl.bindVertexArray(self.VAO[0]);
+        gl.uniform1i(width_location_shader, @intCast(self.width));
+        gl.uniform1i(height_location_shader, @intCast(self.height));
+        //gl.uniform1ui(wallCountLoc, @intCast(walls.len));
+
+        gl.bindVertexArray(self.VAO);
         gl.drawArrays(.triangles, 0, 6);
 
         self.window.swapBuffers();

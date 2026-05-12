@@ -1,0 +1,3 @@
+graphics:
+  # how many walls per ray will be shown on screen before cutting off (performance impact)
+  maximum_wall_count: 256

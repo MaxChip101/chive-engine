@@ -9,33 +9,33 @@ pub const RayCastReturn = struct {
     hit_position: vectors.Vec3,
 };
 
-const MAX_RAYCAST_WALL_COLLSION: comptime_int = 16;
+const MAX_RAYCAST_WALL_COLLSION: comptime_int = 256;
 
 pub fn raycast2D() ?RayCastReturn {}
 
-pub const RaycasterRayCastReturn = struct {
+pub const RayCastResult = extern struct {
+    hit: bool,
+    wall_id: u32,
     distance: f32,
-    pos: f32,
-    wall: objects.Wall,
+    position: f32,
+    rotation: f32,
 };
 
-fn ray_cast_compare(context: void, a: RaycasterRayCastReturn, b: RaycasterRayCastReturn) bool {
+pub const RayCastResultArray = extern struct {
+    length: usize,
+    results: [MAX_RAYCAST_WALL_COLLSION]RayCastResult,
+};
+
+fn ray_cast_compare(context: void, a: RayCastResult, b: RayCastResult) bool {
     _ = context;
     return a.distance > b.distance;
 }
 
-pub fn aabb_line(a: vectors.Line3, b: vectors.Line3) bool {
-    if (a.max_x() < b.min_x() or a.min_x() > b.max_x()) return false;
-    if (a.max_y() < b.min_y() or a.min_y() > b.max_y()) return false;
-    if (a.max_z() < b.min_z() or a.min_z() > b.max_z()) return false;
-    return true;
-}
-
-pub fn wall_raycast2D(origin: vectors.Vec2, direction: f32, game_struct: world.World) ?[]RaycasterRayCastReturn {
+pub fn wall_raycast2D(origin: vectors.Vec2, direction: f32, game_struct: world.World) ?[]RayCastResult {
     const ray_x = origin.x + math.cos(direction);
     const ray_y = origin.y + math.sin(direction);
 
-    var collided: [MAX_RAYCAST_WALL_COLLSION]RaycasterRayCastReturn = undefined;
+    var collided: [MAX_RAYCAST_WALL_COLLSION]RayCastResult = undefined;
 
     var idx: usize = 0;
     for (game_struct.walls.items) |wall| {
@@ -53,6 +53,6 @@ pub fn wall_raycast2D(origin: vectors.Vec2, direction: f32, game_struct: world.W
         if (idx >= MAX_RAYCAST_WALL_COLLSION - 1) break;
     }
 
-    std.mem.sort(RaycasterRayCastReturn, &collided, {}, ray_cast_compare);
+    std.mem.sort(RayCastResult, &collided, {}, ray_cast_compare);
     return &collided;
 }

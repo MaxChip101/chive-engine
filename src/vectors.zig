@@ -1,115 +1,145 @@
 const std = @import("std");
 const math = std.math;
 
-pub const Vec2 = struct {
+pub const Vec2 = extern struct {
     x: f32,
     y: f32,
 
     const Self = @This();
 
-    pub fn create(x: f32, y: f32) Self {
-        return .{ .x = x, .y = y };
+    const zero: Self = .{ .x = 0.0, .y = 0.0 };
+    const one: Self = .{ .x = 1.0, .y = 1.0 };
+    const right: Self = .{ .x = 1.0, .y = 0 };
+    const up: Self = .{ .x = 0.0, .y = 1.0 };
+
+    pub fn length(self: *Self) f32 {
+        return math.sqrt(self.length_squared());
+    }
+
+    pub fn length_squared(self: *Self) f32 {
+        return self.x * self.x + self.y * self.y;
+    }
+
+    pub fn multiply(self: *Self, scaler: f32) void {
+        self.*.x *= scaler;
+        self.*.y *= scaler;
+    }
+
+    pub fn divide(self: *Self, scaler: f32) void {
+        self.*.x /= scaler;
+        self.*.y /= scaler;
+    }
+
+    pub fn add(self: *Self, vec: Vec2) void {
+        self.*.x += vec.x;
+        self.*.y += vec.y;
+    }
+
+    pub fn subtract(self: *Self, vec: Vec2) void {
+        self.*.x -= vec.x;
+        self.*.y -= vec.y;
+    }
+
+    pub fn dot(self: *Self, vec: Vec2) f32 {
+        return self.x * vec.x + self.y * vec.y;
+    }
+
+    pub fn cross(self: *Self, vec: Vec2) Vec2 {
+        return self.x * vec.y - self.y * vec.x;
+    }
+
+    pub fn unit(self: *Self) Vec2 {
+        const _length = self.length();
+
+        return .{ self.x / _length, self.y / _length };
+    }
+
+    pub fn gl(self: *Self) [2]f32 {
+        return .{ self.x, self.y };
     }
 };
 
-pub const Color = struct {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+pub const Color = extern struct {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
 
     const Self = @This();
 
-    pub const zero: Self = .{ .r = 0, .g = 0, .b = 0, .a = 0 };
+    pub const zero: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 };
+    pub const black: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 };
+    pub const white: Self = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 };
 
-    pub fn create(r: u8, g: u8, b: u8, a: u8) Self {
-        return .{ .r = r, .g = g, .b = b, .a = a };
+    pub fn gl(self: *Self) [4]f32 {
+        return .{ self.r, self.g, self.b, self.a };
     }
 };
 
-pub const Gradient = struct {
-    start: Color,
-    end: Color,
-    type: GradientType,
-};
-
-pub const GradientType = enum {
-    LeftRight,
-    UpDown,
-    Center,
-};
-
-pub const Vec3 = struct {
+pub const Vec3 = extern struct {
     x: f32,
     y: f32,
     z: f32,
 
     const Self = @This();
 
-    pub fn create(x: f32, y: f32, z: f32) Self {
-        return .{ .x = x, .y = y, .z = z };
-    }
+    const zero: Self = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
+    const one: Self = .{ .x = 1.0, .y = 1.0, .z = 1.0 };
+    const up: Self = .{ .x = 0, .y = 1.0, .z = 0 };
+    const right: Self = .{ .x = 1.0, .y = 0, .z = 0 };
+    const forward: Self = .{ .x = 0, .y = 0, .z = 1.0 };
 
     pub fn length(self: *Self) f32 {
-        return math.sqrt(self.x * self.x + self.y * self.y + self.z * self.z);
+        return math.sqrt(self.length_squared());
     }
 
     pub fn length_squared(self: *Self) f32 {
         return self.x * self.x + self.y * self.y + self.z * self.z;
     }
-};
 
-pub const Line3 = struct {
-    start: Vec3,
-    end: Vec3,
-
-    const Self = @This();
-
-    pub fn create(start: Vec3, end: Vec3) Self {
-        return .{ .start = start, .end = end };
+    pub fn multiply(self: *Self, scaler: f32) void {
+        self.*.x *= scaler;
+        self.*.y *= scaler;
+        self.*.z *= scaler;
     }
 
-    pub fn max_x(self: *Self) f32 {
-        return @max(self.start.x, self.end.x);
+    pub fn divide(self: *Self, scaler: f32) void {
+        self.*.x /= scaler;
+        self.*.y /= scaler;
+        self.*.z /= scaler;
     }
 
-    pub fn min_x(self: *Self) f32 {
-        return @min(self.start.x, self.end.x);
+    pub fn add(self: *Self, vec: Vec3) void {
+        self.*.x += vec.x;
+        self.*.y += vec.y;
+        self.*.z += vec.z;
     }
 
-    pub fn max_y(self: *Self) f32 {
-        return @max(self.start.y, self.end.y);
+    pub fn subtract(self: *Self, vec: Vec3) void {
+        self.*.x -= vec.x;
+        self.*.y -= vec.y;
+        self.*.z -= vec.z;
     }
 
-    pub fn min_y(self: *Self) f32 {
-        return @min(self.start.y, self.end.y);
+    pub fn dot(self: *Self, vec: Vec3) f32 {
+        return self.x * vec.x + self.y * vec.y + self.z * vec.z;
     }
 
-    pub fn max_z(self: *Self) f32 {
-        return @max(self.start.z, self.end.z);
+    pub fn cross(self: *Self, vec: Vec3) Vec3 {
+        return .{
+            .x = self.y * vec.z - self.z - vec.y,
+            .y = self.z * vec.x - self.x * vec.z,
+            .z = self.x * vec.y - self.y * vec.x,
+        };
     }
 
-    pub fn min_z(self: *Self) f32 {
-        return @min(self.start.z, self.end.z);
+    pub fn unit(self: *Self) Vec3 {
+        const _length = self.length();
+
+        return .{ self.x / _length, self.y / _length, self.z / _length };
     }
-};
 
-pub const Quaternion = struct {
-    w: f32,
-    x: f32,
-    y: f32,
-    z: f32,
-};
-
-pub const Transform2D = struct {
-    position: Vec2,
-    scale: Vec2,
-    rotation: f32,
-};
-
-pub const Transform3D = struct {
-    position: Vec3,
-    scale: Vec3,
-    rotation: Vec3,
-    orientation: Quaternion,
+    pub fn gl(self: *Self) [3]f32 {
+        return .{ self.x, self.y, self.z };
+    }
 };
