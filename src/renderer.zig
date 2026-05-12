@@ -179,7 +179,7 @@ pub const Renderer = struct {
 
         gl.bufferData(gl.BufferTarget.array_buffer, f32, &vertices, gl.BufferUsage.static_draw);
 
-        gl.vertexAttribPointer(0, 3, gl.Type.float, false, 2 * @sizeOf(f32), 0);
+        gl.vertexAttribPointer(0, 2, gl.Type.float, false, 2 * @sizeOf(f32), 0);
         gl.enableVertexAttribArray(0);
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
