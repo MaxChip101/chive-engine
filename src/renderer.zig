@@ -29,7 +29,18 @@ pub const Renderer = struct {
     cameraSSBO: gl.Buffer,
     resultsSSBO: gl.Buffer,
     result_buffer: []physics.RayCastResult,
-    max_walls: u16,
+    max_walls: u32,
+    render_scale: u32,
+
+    compute_width_loc: ?u32,
+    compute_height_loc: ?u32,
+    compute_wall_count_loc: ?u32,
+    compute_max_walls_loc: ?u32,
+    compute_render_scale_loc: ?u32,
+    shader_width_loc: ?u32,
+    shader_height_loc: ?u32,
+    shader_max_walls_loc: ?u32,
+    shader_render_scale_loc: ?u32,
 
     const Self = @This();
 
@@ -44,6 +55,7 @@ pub const Renderer = struct {
     pub fn init(allocator: mem.Allocator, width: u32, height: u32, name: []const u8) !Self {
         var self: Self = undefined;
         self.max_walls = 16;
+        self.render_scale = 10;
         if (!glfw.init(.{})) {
             return error.GLFWInitFailed;
         }
@@ -112,6 +124,12 @@ pub const Renderer = struct {
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeShaderProgram;
         }
+        gl.useProgram(shaderProgram);
+
+        self.shader_width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
+        self.shader_height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
+        self.shader_max_walls_loc = gl.getUniformLocation(shaderProgram, "max_walls");
+        self.shader_render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
 
         const computeShader = gl.createShader(.compute);
 
@@ -127,7 +145,6 @@ pub const Renderer = struct {
         }
 
         const computeProgram = gl.createProgram();
-        std.debug.print("{any}", .{computeProgram});
         gl.attachShader(computeProgram, computeShader);
         gl.linkProgram(computeProgram);
 
@@ -137,6 +154,14 @@ pub const Renderer = struct {
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeComputeProgram;
         }
+
+        gl.useProgram(computeProgram);
+
+        self.compute_width_loc = gl.getUniformLocation(computeProgram, "screen_width");
+        self.compute_height_loc = gl.getUniformLocation(computeProgram, "screen_height");
+        self.compute_wall_count_loc = gl.getUniformLocation(computeProgram, "wall_count");
+        self.compute_max_walls_loc = gl.getUniformLocation(computeProgram, "max_walls");
+        self.compute_render_scale_loc = gl.getUniformLocation(computeProgram, "render_scale");
 
         var vertices = [_]f32{
             -1.0, 1.0, //
@@ -168,7 +193,7 @@ pub const Renderer = struct {
         }}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
 
-        const result_buffer = try allocator.alloc(physics.RayCastResult, width * self.max_walls);
+        const result_buffer = try allocator.alloc(physics.RayCastResult, (width * self.max_walls) / self.render_scale);
 
         gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
@@ -221,54 +246,13 @@ pub const Renderer = struct {
         glfw.terminate();
     }
 
-    // pub fn drawCamera(self: *Self, camera: objects.Camera, game_struct: world.World) void {
-    //     for (0..self.width) |n| {
-    //         const angle: f32 = camera.rad_rotation.y - math.atan((@as(f32, @floatFromInt(n)) - @as(f32, @floatFromInt(self.width)) / 2.0) / camera.proj_dist);
-
-    //         const result = physics.wall_raycast2D(.create(camera.position.x, camera.position.z), angle, game_struct);
-
-    //         if (result == null) continue;
-    //         for (result.?) |collisions| {
-    //             const distance = collisions.distance;
-    //             const pos = collisions.pos;
-    //             const wall = collisions.wall;
-
-    //             if (distance >= math.inf(f32)) continue;
-
-    //             const cr: f32 = @max(0.01, distance * math.cos(camera.rad_rotation.y - angle));
-    //             const f_height: f32 = @as(f32, @floatFromInt(self.height));
-    //             const wall_height: f32 = @min(@max(1.0, camera.proj_dist / cr), f_height);
-    //             //const fade: u8 = @as(u8, @intFromFloat(math.clamp(distance * 20, 0, 255)));
-    //             const middle = @as(usize, @intFromFloat(@max(0.0, f_height / 2 - (wall_height / 2))));
-    //             const vertical = @as(usize, (@intFromFloat(wall_height * (wall.start.y + pos * (wall.end.y - wall.start.y)))));
-    //             // try implementing vertical offsetted walls
-    //             // switch to shader implementation
-    //             switch (wall.material) {
-    //                 .color => |color| {
-    //                     for (0..@as(usize, @intFromFloat(wall_height * wall.height))) |y| {
-    //                         //if (self.getPixel(n, middle + y + vertical).a == 0) {
-    //                         const back_pixel = self.getPixel(n, middle + y + vertical);
-    //                         const alpha: f32 = @as(f32, @floatFromInt(color.a)) / 255.0;
-    //                         const r = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.r)) * alpha) + (@as(f32, @floatFromInt(back_pixel.r)) * (1 - alpha))));
-    //                         const g = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.g)) * alpha) + (@as(f32, @floatFromInt(back_pixel.g)) * (1 - alpha))));
-    //                         const b = @as(u8, @intFromFloat((@as(f32, @floatFromInt(color.b)) * alpha) + (@as(f32, @floatFromInt(back_pixel.b)) * (1 - alpha))));
-    //                         self.setPixel(n, middle + y + vertical, .{ .r = r, .g = g, .b = b, .a = color.a });
-    //                         //}
-    //                     }
-    //                 },
-    //                 .gradient => {},
-    //             }
-    //         }
-    //     }
-    // }
-
     pub fn render_update(self: *Self, camera: *objects.Camera) !void {
         const size = self.window.getFramebufferSize();
         if (self.width == size.width and self.height == size.height) return;
         self.*.width = size.width;
         self.*.height = size.height;
         camera.updateProjectionDistance(self.width);
-        self.*.result_buffer = try self.allocator.realloc(self.*.result_buffer, self.width * self.max_walls);
+        self.*.result_buffer = try self.allocator.realloc(self.*.result_buffer, (self.width * self.max_walls) / self.render_scale);
         @memset(self.*.result_buffer, .{
             .distance = math.inf(f32),
             .position = 0,
@@ -298,31 +282,24 @@ pub const Renderer = struct {
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(.{ .color = true, .stencil = false, .depth = false });
 
-        const width_location_compute = gl.getUniformLocation(self.computeProgram, "screen_width");
-        const height_location_compute = gl.getUniformLocation(self.computeProgram, "screen_height");
-        const wall_count_location_compute = gl.getUniformLocation(self.computeProgram, "wall_count");
-        const max_walls_location_compute = gl.getUniformLocation(self.computeProgram, "max_walls");
-
         gl.useProgram(self.computeProgram);
 
-        gl.uniform1i(width_location_compute, @intCast(self.width));
-        gl.uniform1i(height_location_compute, @intCast(self.height));
-        gl.uniform1ui(wall_count_location_compute, @intCast(walls.len));
-        gl.uniform1ui(max_walls_location_compute, self.max_walls);
+        gl.uniform1i(self.compute_width_loc, @intCast(self.width));
+        gl.uniform1i(self.compute_height_loc, @intCast(self.height));
+        gl.uniform1ui(self.compute_wall_count_loc, @intCast(walls.len));
+        gl.uniform1ui(self.compute_max_walls_loc, self.max_walls);
+        gl.uniform1ui(self.compute_render_scale_loc, self.render_scale);
 
         const groups_x = (self.width + (max_compute_x_groups - 1)) / max_compute_x_groups;
         gl.binding.dispatchCompute(groups_x, 1, 1);
         gl.binding.memoryBarrier(gl.binding.SHADER_STORAGE_BARRIER_BIT);
 
-        const width_location_shader = gl.getUniformLocation(self.shaderProgram, "screen_width");
-        const height_location_shader = gl.getUniformLocation(self.shaderProgram, "screen_height");
-        const max_walls_location_shader = gl.getUniformLocation(self.shaderProgram, "max_walls");
-
         gl.useProgram(self.shaderProgram);
 
-        gl.uniform1i(width_location_shader, @intCast(self.width));
-        gl.uniform1i(height_location_shader, @intCast(self.height));
-        gl.uniform1ui(max_walls_location_shader, self.max_walls);
+        gl.uniform1i(self.shader_width_loc, @intCast(self.width));
+        gl.uniform1i(self.shader_height_loc, @intCast(self.height));
+        gl.uniform1ui(self.shader_max_walls_loc, self.max_walls);
+        gl.uniform1ui(self.shader_render_scale_loc, self.render_scale);
 
         gl.bindVertexArray(self.VAO);
         gl.drawArrays(.triangles, 0, 6);

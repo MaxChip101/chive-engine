@@ -45,7 +45,9 @@ pub fn main() !void {
     // lua.doFile(script_path) catch |err| {
     //     std.debug.print("{any}", .{err});
     // };
-    try lua.doFile(script_path);
+    lua.doFile(script_path) catch |err| {
+        std.debug.print("{any}", .{err});
+    };
 
     var last_time = time.milliTimestamp();
 

@@ -37,6 +37,7 @@ layout(std430, binding = 1) readonly buffer CameraBuffer {
 uniform int screen_width;
 uniform int screen_height;
 uniform uint max_walls;
+uniform uint render_scale;
 
 layout(std430, binding = 2) buffer RaycastBuffer {
     RaycastResult result[];
@@ -49,8 +50,7 @@ layout(std430, binding = 3) readonly buffer TextureBuffer {
 out vec4 FragColor;
 
 void main() {
-    const float x = gl_FragCoord.x;
-    const float y = gl_FragCoord.y;
+    const uint x = uint(gl_FragCoord.x) / render_scale;
     const float height = float(screen_height);
     const float perspective = ((gl_FragCoord.y - height / 2.0) / camera.projection_distance) /* - tan(camera.rotation.x) */ ;
 
@@ -59,7 +59,7 @@ void main() {
 
     vec4 pixel_color = vec4(0, 0, 0, 0);
 
-    for (uint i = uint(x) * max_walls; i < max_walls * (uint(x) + 1); i++) {
+    for (uint i = x * max_walls; i < max_walls * (x + 1); i++) {
         const RaycastResult hit = result[i];
         if (isinf(hit.distance)) {
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);

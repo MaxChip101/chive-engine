@@ -40,6 +40,7 @@ uniform int screen_width;
 uniform int screen_height;
 uniform uint wall_count;
 uniform uint max_walls;
+uniform uint render_scale;
 
 layout(std430, binding = 2) writeonly buffer RaycastBuffer {
     RaycastResult result[];
@@ -48,13 +49,14 @@ layout(std430, binding = 2) writeonly buffer RaycastBuffer {
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 void main() {
-    const uint pixel_x = gl_GlobalInvocationID.x;
+    const uint x = gl_GlobalInvocationID.x;
+    const uint pixel_x = x / render_scale;
 
     if (pixel_x >= screen_width) {
         return;
     }
 
-    const float angle = camera.rotation.y - atan((float(gl_GlobalInvocationID.x) - float(screen_width) / 2.0) / camera.projection_distance);
+    const float angle = camera.rotation.y - atan((float(x) - float(screen_width) / 2.0) / camera.projection_distance);
 
     const float ray_x = camera.position.x + cos(angle);
     const float ray_y = camera.position.z + sin(angle);
