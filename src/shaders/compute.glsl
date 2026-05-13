@@ -52,7 +52,7 @@ void main() {
     const uint x = gl_GlobalInvocationID.x;
     const uint pixel_x = x / render_scale;
 
-    if (pixel_x >= screen_width) {
+    if (x >= uint(screen_width)) {
         return;
     }
 
