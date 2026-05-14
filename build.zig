@@ -20,7 +20,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const exe = b.addExecutable(.{
-        .name = "mod_game",
+        .name = "chive_engine",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,

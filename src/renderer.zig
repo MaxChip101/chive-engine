@@ -32,6 +32,8 @@ pub const Renderer = struct {
     max_walls: u32,
     render_scale: u32,
 
+    texture_atlas: u32,
+
     compute_width_loc: ?u32,
     compute_height_loc: ?u32,
     compute_wall_count_loc: ?u32,
@@ -52,10 +54,11 @@ pub const Renderer = struct {
 
     const computeShaderSource = @embedFile("shaders/compute.glsl");
 
-    pub fn init(allocator: mem.Allocator, width: u32, height: u32, name: []const u8) !Self {
+    // make textures
+
+    pub fn init(allocator: mem.Allocator, width: u32, height: u32, name: []const u8, max_walls: u32, render_scale: u32, fullscreen: bool) !Self {
         var self: Self = undefined;
-        self.max_walls = 16;
-        self.render_scale = 10;
+
         if (!glfw.init(.{})) {
             return error.GLFWInitFailed;
         }
@@ -193,7 +196,7 @@ pub const Renderer = struct {
         }}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
 
-        const result_buffer = try allocator.alloc(physics.RayCastResult, (width * self.max_walls) / self.render_scale);
+        const result_buffer = try allocator.alloc(physics.RayCastResult, (width * max_walls) / render_scale);
 
         gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
@@ -209,7 +212,9 @@ pub const Renderer = struct {
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
 
-        gl.enable(.blend);
+        // gl.enable(.blend);
+
+        if (fullscreen) window.maximize();
 
         self.allocator = allocator;
         self.width = width;
@@ -226,6 +231,8 @@ pub const Renderer = struct {
         self.cameraSSBO = cameraSSBO;
         self.resultsSSBO = resultsSSBO;
         self.result_buffer = result_buffer;
+        self.max_walls = max_walls;
+        self.render_scale = render_scale;
 
         return self;
     }

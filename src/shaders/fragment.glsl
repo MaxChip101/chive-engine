@@ -34,6 +34,8 @@ layout(std430, binding = 1) readonly buffer CameraBuffer {
     Camera camera;
 };
 
+uniform sampler2DArray texture_atlas;
+
 uniform int screen_width;
 uniform int screen_height;
 uniform uint max_walls;

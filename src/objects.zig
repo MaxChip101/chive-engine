@@ -5,9 +5,8 @@ const vectors = @import("vectors.zig");
 const renderer = @import("renderer.zig");
 
 pub const Texture = struct {
-    id: u32,
-    dimensions: vectors.Vec2,
-    pixels: []vectors.Color,
+    u: u32,
+    v: u32,
 };
 
 pub const Wall = extern struct {
