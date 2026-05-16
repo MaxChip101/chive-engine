@@ -54,7 +54,7 @@ out vec4 FragColor;
 void main() {
     const uint x = uint(gl_FragCoord.x) / render_scale;
     const float height = float(screen_height);
-    const float perspective = ((gl_FragCoord.y - height / 2.0) / camera.projection_distance) /* - tan(camera.rotation.x) */ ;
+    const float perspective = ((gl_FragCoord.y - height / 2.0) / camera.projection_distance) - tan(camera.rotation.x);
 
     // get array start & end for x coordinate range
     // loop over array & blend as needed

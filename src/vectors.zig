@@ -7,16 +7,16 @@ pub const Vec2 = extern struct {
 
     const Self = @This();
 
-    const zero: Self = .{ .x = 0.0, .y = 0.0 };
-    const one: Self = .{ .x = 1.0, .y = 1.0 };
-    const right: Self = .{ .x = 1.0, .y = 0 };
-    const up: Self = .{ .x = 0.0, .y = 1.0 };
+    pub const zero: Self = .{ .x = 0.0, .y = 0.0 };
+    pub const one: Self = .{ .x = 1.0, .y = 1.0 };
+    pub const right: Self = .{ .x = 1.0, .y = 0 };
+    pub const up: Self = .{ .x = 0.0, .y = 1.0 };
 
-    pub fn length(self: *Self) f32 {
+    pub fn length(self: Self) f32 {
         return math.sqrt(self.length_squared());
     }
 
-    pub fn length_squared(self: *Self) f32 {
+    pub fn length_squared(self: Self) f32 {
         return self.x * self.x + self.y * self.y;
     }
 
@@ -40,22 +40,19 @@ pub const Vec2 = extern struct {
         self.*.y -= vec.y;
     }
 
-    pub fn dot(self: *Self, vec: Vec2) f32 {
+    pub fn dot(self: Self, vec: Vec2) f32 {
         return self.x * vec.x + self.y * vec.y;
     }
 
-    pub fn cross(self: *Self, vec: Vec2) Vec2 {
+    pub fn cross(self: Self, vec: Vec2) f32 {
         return self.x * vec.y - self.y * vec.x;
     }
 
     pub fn unit(self: *Self) Vec2 {
         const _length = self.length();
+        if (_length == 0) return .zero;
 
-        return .{ self.x / _length, self.y / _length };
-    }
-
-    pub fn gl(self: *Self) [2]f32 {
-        return .{ self.x, self.y };
+        return .{ .x = self.x / _length, .y = self.y / _length };
     }
 };
 
@@ -70,10 +67,6 @@ pub const Color = extern struct {
     pub const zero: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 };
     pub const black: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 };
     pub const white: Self = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 };
-
-    pub fn gl(self: *Self) [4]f32 {
-        return .{ self.r, self.g, self.b, self.a };
-    }
 };
 
 pub const Vec3 = extern struct {
@@ -83,17 +76,17 @@ pub const Vec3 = extern struct {
 
     const Self = @This();
 
-    const zero: Self = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
-    const one: Self = .{ .x = 1.0, .y = 1.0, .z = 1.0 };
-    const up: Self = .{ .x = 0, .y = 1.0, .z = 0 };
-    const right: Self = .{ .x = 1.0, .y = 0, .z = 0 };
-    const forward: Self = .{ .x = 0, .y = 0, .z = 1.0 };
+    pub const zero: Self = .{ .x = 0.0, .y = 0.0, .z = 0.0 };
+    pub const one: Self = .{ .x = 1.0, .y = 1.0, .z = 1.0 };
+    pub const up: Self = .{ .x = 0, .y = 1.0, .z = 0 };
+    pub const right: Self = .{ .x = 1.0, .y = 0, .z = 0 };
+    pub const forward: Self = .{ .x = 0, .y = 0, .z = 1.0 };
 
-    pub fn length(self: *Self) f32 {
+    pub fn length(self: Self) f32 {
         return math.sqrt(self.length_squared());
     }
 
-    pub fn length_squared(self: *Self) f32 {
+    pub fn length_squared(self: Self) f32 {
         return self.x * self.x + self.y * self.y + self.z * self.z;
     }
 
@@ -121,25 +114,27 @@ pub const Vec3 = extern struct {
         self.*.z -= vec.z;
     }
 
-    pub fn dot(self: *Self, vec: Vec3) f32 {
+    pub fn dot(self: Self, vec: Vec3) f32 {
         return self.x * vec.x + self.y * vec.y + self.z * vec.z;
     }
 
-    pub fn cross(self: *Self, vec: Vec3) Vec3 {
+    pub fn cross(self: Self, vec: Vec3) Vec3 {
         return .{
-            .x = self.y * vec.z - self.z - vec.y,
+            .x = self.y * vec.z - self.z * vec.y,
             .y = self.z * vec.x - self.x * vec.z,
             .z = self.x * vec.y - self.y * vec.x,
         };
     }
 
-    pub fn unit(self: *Self) Vec3 {
+    pub fn unit(self: Self) Vec3 {
         const _length = self.length();
 
-        return .{ self.x / _length, self.y / _length, self.z / _length };
-    }
+        if (_length == 0) return .zero;
 
-    pub fn gl(self: *Self) [3]f32 {
-        return .{ self.x, self.y, self.z };
+        return .{
+            .x = self.x / _length,
+            .y = self.y / _length,
+            .z = self.z / _length,
+        };
     }
 };

@@ -20,6 +20,7 @@ const Settings = struct {
     walkspeed: f32,
     camera_sensitivity: f32,
     fov: f32,
+    pitch_offset: bool,
     frame_rate: u32,
     max_walls: u32,
     render_scale: u32,
@@ -48,7 +49,7 @@ pub fn main() !void {
     var renderer: renderer_class.Renderer = try .init(allocator, settings.width, settings.height, "chive engine", settings.max_walls, settings.render_scale, settings.fullscreen);
     defer renderer.deinit();
 
-    camera = .init(vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, vectors.Vec3{ .x = 0, .y = -90, .z = 0 }, settings.fov, settings.width);
+    camera = .init(vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, vectors.Vec3{ .x = 0, .y = 90, .z = 0 }, settings.fov, settings.width);
 
     _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 3, .z = 2 }, .end = .{ .x = 4, .y = 0, .z = 2 }, .height = 1.0, .texture_id = 0 });
     _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 0, .z = -2 }, .end = .{ .x = 4, .y = 0, .z = -2 }, .height = 1.0, .texture_id = 0 });
@@ -83,6 +84,8 @@ pub fn main() !void {
             const mouse_x = @as(f32, @floatCast(renderer.window.getCursorPos().xpos));
             const mouse_y = @as(f32, @floatCast(renderer.window.getCursorPos().ypos));
 
+            var velocity: vectors.Vec3 = .zero;
+
             if (locked) {
                 camera.increaseRotation(.{ .x = sensitivity * delta_time * -(mouse_y - last_mouse_y), .y = sensitivity * delta_time * (mouse_x - last_mouse_x), .z = 0 });
             }
@@ -98,26 +101,22 @@ pub fn main() !void {
             }
             was_escape_presed = (escape_state == .release);
             if (renderer.window.getKey(glfw.Key.w) == glfw.Action.press) {
-                camera.position.z += walk_speed * math.sin(camera.rotation.y) * delta_time;
-                camera.position.x += walk_speed * math.cos(camera.rotation.y) * delta_time;
+                velocity.add(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.a) == glfw.Action.press) {
-                camera.position.z += walk_speed * math.cos(camera.rotation.y) * delta_time;
-                camera.position.x += -walk_speed * math.sin(camera.rotation.y) * delta_time;
+                velocity.add(.{ .x = -math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.s) == glfw.Action.press) {
-                camera.position.z += -walk_speed * math.sin(camera.rotation.y) * delta_time;
-                camera.position.x += -walk_speed * math.cos(camera.rotation.y) * delta_time;
+                velocity.subtract(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.d) == glfw.Action.press) {
-                camera.position.z += -walk_speed * math.cos(camera.rotation.y) * delta_time;
-                camera.position.x += walk_speed * math.sin(camera.rotation.y) * delta_time;
+                velocity.add(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = -math.cos(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.space) == glfw.Action.press) {
-                camera.position.y += walk_speed * delta_time;
+                velocity.add(vectors.Vec3.up);
             }
             if (renderer.window.getKey(glfw.Key.left_shift) == glfw.Action.press) {
-                camera.position.y -= walk_speed * delta_time;
+                velocity.subtract(vectors.Vec3.up);
             }
             if (renderer.window.getKey(glfw.Key.left) == glfw.Action.press) {
                 camera.increaseRotation(.{ .x = 0, .y = -sensitivity * delta_time, .z = 0 });
@@ -131,6 +130,11 @@ pub fn main() !void {
             if (renderer.window.getKey(glfw.Key.right) == glfw.Action.press) {
                 camera.increaseRotation(.{ .x = 0, .y = sensitivity * delta_time, .z = 0 });
             }
+
+            var unit = velocity.unit();
+            unit.multiply(delta_time * walk_speed);
+
+            camera.position.add(unit);
 
             last_mouse_x = mouse_x;
             last_mouse_y = mouse_y;

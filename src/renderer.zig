@@ -314,7 +314,7 @@ pub const Renderer = struct {
         self.window.swapBuffers();
     }
 
-    pub fn update(self: *Self) void {
+    pub fn update(self: Self) void {
         _ = self;
         glfw.pollEvents();
     }
