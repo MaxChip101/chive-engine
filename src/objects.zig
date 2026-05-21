@@ -4,11 +4,6 @@ const math = std.math;
 const vectors = @import("vectors.zig");
 const renderer = @import("renderer.zig");
 
-pub const Texture = struct {
-    u: u32,
-    v: u32,
-};
-
 pub const Wall = extern struct {
     start: vectors.Vec3,
     height: f32,

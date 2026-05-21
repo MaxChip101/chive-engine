@@ -9,9 +9,16 @@ const objects = @import("objects.zig");
 const world = @import("world.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
+const textures = @import("textures.zig");
+
+pub const DisplayMethod = enum {
+    Windowed,
+    FullScreen,
+    Borderless,
+};
 
 pub const Renderer = struct {
-    width: u32, // either switch to aspect ratio or remove because window stores the width
+    width: u32,
     height: u32,
     allocator: mem.Allocator,
 
@@ -32,7 +39,7 @@ pub const Renderer = struct {
     max_walls: u32,
     render_scale: u32,
 
-    texture_atlas: u32,
+    //texture_atlas: u32,
 
     compute_width_loc: ?u32,
     compute_height_loc: ?u32,
@@ -56,7 +63,7 @@ pub const Renderer = struct {
 
     // make textures
 
-    pub fn init(allocator: mem.Allocator, width: u32, height: u32, name: []const u8, max_walls: u32, render_scale: u32, fullscreen: bool) !Self {
+    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: u16, texture_atlas_count: u16) !Self {
         var self: Self = undefined;
 
         if (!glfw.init(.{})) {
@@ -91,12 +98,11 @@ pub const Renderer = struct {
         gl.shaderSource(vertexShader, 1, &.{vertexShaderSource});
         gl.compileShader(vertexShader);
 
-        var success: c_int = undefined;
+        var status: c_int = undefined;
         var infoLog: [:0]const u8 = undefined;
 
-        gl.binding.getShaderiv(@intFromEnum(vertexShader), gl.binding.COMPILE_STATUS, &success);
-
-        if (success == 0) {
+        status = gl.getShader(vertexShader, .compile_status);
+        if (status == 0) {
             infoLog = try gl.getShaderInfoLog(vertexShader, allocator);
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeVertexShader;
@@ -107,9 +113,8 @@ pub const Renderer = struct {
         gl.shaderSource(fragmentShader, 1, &.{fragmentShaderSource});
         gl.compileShader(fragmentShader);
 
-        gl.binding.getShaderiv(@intFromEnum(fragmentShader), gl.binding.COMPILE_STATUS, &success);
-
-        if (success == 0) {
+        status = gl.getShader(fragmentShader, .compile_status);
+        if (status == 0) {
             infoLog = try gl.getShaderInfoLog(fragmentShader, allocator);
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeFragmentShader;
@@ -121,8 +126,8 @@ pub const Renderer = struct {
         gl.attachShader(shaderProgram, fragmentShader);
         gl.linkProgram(shaderProgram);
 
-        gl.binding.getProgramiv(@intFromEnum(shaderProgram), gl.binding.LINK_STATUS, &success);
-        if (success == 0) {
+        status = gl.getProgram(shaderProgram, .link_status);
+        if (status == 0) {
             infoLog = try gl.getProgramInfoLog(shaderProgram, allocator);
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeShaderProgram;
@@ -139,9 +144,8 @@ pub const Renderer = struct {
         gl.shaderSource(computeShader, 1, &.{computeShaderSource});
         gl.compileShader(computeShader);
 
-        gl.binding.getShaderiv(@intFromEnum(computeShader), gl.binding.COMPILE_STATUS, &success);
-
-        if (success == 0) {
+        status = gl.getShader(computeShader, .compile_status);
+        if (status == 0) {
             infoLog = try gl.getShaderInfoLog(computeShader, allocator);
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeComputeShader;
@@ -151,8 +155,8 @@ pub const Renderer = struct {
         gl.attachShader(computeProgram, computeShader);
         gl.linkProgram(computeProgram);
 
-        gl.binding.getProgramiv(@intFromEnum(computeProgram), gl.binding.LINK_STATUS, &success);
-        if (success == 0) {
+        status = gl.getProgram(computeProgram, .link_status);
+        if (status == 0) {
             infoLog = try gl.getProgramInfoLog(computeProgram, allocator);
             std.log.err("{s}", .{infoLog});
             return error.FailedToMakeComputeProgram;
@@ -211,10 +215,35 @@ pub const Renderer = struct {
         gl.enableVertexAttribArray(0);
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
+        // gen texture, bind texture, texture size, texture array data
 
-        // gl.enable(.blend);
+        // multiple texture atlasses
+        // 3d textures (regular width and hright, but depth is used for the texture id)
+        // multiple texture atlas sizes:
+        // small: 512
+        // med: 1024
+        // large: 2048
+        // huge: 4096
+        // etc etc
+        // need a place and time to initialize this when the texture atlas is ready
 
-        if (fullscreen) window.maximize();
+        const texture_atlas = gl.genTexture();
+        gl.bindTexture(texture_atlas, .@"2d_array");
+        gl.textureImage3D(
+            .@"2d_array",
+            0,
+            .rgba8,
+            texture_atlas_size,
+            texture_atlas_size,
+            texture_atlas_count,
+            .rgba,
+            .byte,
+            null,
+        );
+        gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest);
+        gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
+
+        if (display_method == .FullScreen) window.maximize();
 
         self.allocator = allocator;
         self.width = width;
@@ -251,6 +280,12 @@ pub const Renderer = struct {
         self.allocator.free(self.result_buffer);
         self.window.destroy();
         glfw.terminate();
+    }
+
+    pub fn add_texture_atlas(self: *Self, data: []u8) usize {
+        // make this
+        _ = self;
+        _ = data;
     }
 
     pub fn render_update(self: *Self, camera: *objects.Camera) !void {

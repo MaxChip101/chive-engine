@@ -27,6 +27,8 @@ const Settings = struct {
     width: u32,
     height: u32,
     fullscreen: bool,
+    texture_atlas_size: u16,
+    texture_atlas_count: u16,
 };
 
 pub fn main() !void {
@@ -46,7 +48,13 @@ pub fn main() !void {
     var world_struct: world_class.World = try .init(allocator);
     defer world_struct.deinit();
 
-    var renderer: renderer_class.Renderer = try .init(allocator, settings.width, settings.height, "chive engine", settings.max_walls, settings.render_scale, settings.fullscreen);
+    var display_method: renderer_class.DisplayMethod = undefined;
+
+    if (settings.fullscreen) {
+        display_method = .FullScreen;
+    }
+
+    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_walls, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
     camera = .init(vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, vectors.Vec3{ .x = 0, .y = 90, .z = 0 }, settings.fov, settings.width);
