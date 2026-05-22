@@ -19,6 +19,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const zigimg = b.dependency("zigimg", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "chive_engine",
         .root_source_file = b.path("src/main.zig"),
@@ -29,6 +34,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("zgl", zgl.module("zgl"));
     exe.root_module.addImport("glfw", glfw_dep.module("glfw"));
     exe.root_module.addImport("zlua", lua_dep.module("zlua"));
+    exe.root_module.addImport("zigimg", zigimg.module("zigimg"));
 
     b.installArtifact(exe);
     const run_cmd = b.addRunArtifact(exe);

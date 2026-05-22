@@ -1,8 +1,12 @@
 #version 450 core
 
 struct Texture {
-    ivec2 dimensions;
-    vec4 pixels[];
+    vec2 uv_min;
+    vec2 uv_max;
+    vec4 tint;
+    uint atlas_id;
+    bool flip_v;
+    bool flip_h;
 };
 
 struct Wall {
@@ -58,6 +62,7 @@ void main() {
 
     // get array start & end for x coordinate range
     // loop over array & blend as needed
+    // apply textures and make colors mix only when translucent
 
     vec4 pixel_color = vec4(0, 0, 0, 0);
 
@@ -68,14 +73,28 @@ void main() {
             continue;
         }
         const Wall wall = walls[hit.wall_id];
+        const Texture tex = textures[wall.texture_id];
 
         const float cr = hit.distance * cos(camera.rotation.y - hit.rotation);
         const float world_y = camera.position.y + cr * perspective;
         const float wall_y_bottom = wall.start.y + hit.position * (wall.end.y - wall.start.y);
         const float wall_y_top = wall_y_bottom + wall.height;
-        const float shade = 1 / (0.4 * cr);
+        const float shade = 1 / (0.3 * cr);
+
+        float u = mix(tex.uv_min.x, tex.uv_max.x, hit.position);
+        float v = mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom) / wall.height);
+
+        if (tex.flip_v) u *= -1;
+        if (tex.flip_h) v *= -1;
+
+        vec4 pixel = texture(texture_atlas, vec3(u, v, float(tex.atlas_id)));
+
+        pixel.rgb *= shade;
+
         if (world_y >= wall_y_bottom && world_y <= wall_y_top) {
-            pixel_color = mix(pixel_color, vec4(1.0, 1.0, 1.0, 1.0), (pixel_color.w + 1.0) / 2);
+            if (pixel_color == vec4(0, 0, 0, 0) && pixel.a == 1.0) {
+                pixel_color = pixel + pixel_color * (1.0 - pixel.a);
+            }
         }
     }
     FragColor = pixel_color;

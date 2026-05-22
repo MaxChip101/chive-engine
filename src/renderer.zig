@@ -9,12 +9,20 @@ const objects = @import("objects.zig");
 const world = @import("world.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
-const textures = @import("textures.zig");
 
 pub const DisplayMethod = enum {
     Windowed,
     FullScreen,
     Borderless,
+};
+
+pub const Texture = struct {
+    uv_min: vectors.Vec2,
+    uv_max: vectors.Vec2,
+    tint: vectors.Color,
+    altas_id: u32,
+    flip_v: bool,
+    flip_h: bool,
 };
 
 pub const Renderer = struct {
@@ -31,15 +39,19 @@ pub const Renderer = struct {
     computeProgram: gl.Program,
     VAO: gl.VertexArray,
     VBO: gl.Buffer,
-    raycast_results: std.ArrayList(physics.RayCastResult),
     wallSSBO: gl.Buffer,
+    textureSSBO: gl.Buffer,
     cameraSSBO: gl.Buffer,
     resultsSSBO: gl.Buffer,
     result_buffer: []physics.RayCastResult,
     max_walls: u32,
     render_scale: u32,
 
-    //texture_atlas: u32,
+    texture_list: std.ArrayList(Texture),
+
+    texture_atlas: gl.Texture,
+    texture_atlas_size: usize,
+    texture_atlas_count: usize,
 
     compute_width_loc: ?u32,
     compute_height_loc: ?u32,
@@ -50,20 +62,17 @@ pub const Renderer = struct {
     shader_height_loc: ?u32,
     shader_max_walls_loc: ?u32,
     shader_render_scale_loc: ?u32,
+    shader_texture_atlas_loc: ?u32,
 
     const Self = @This();
 
     const max_compute_x_groups = 64;
 
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
-
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
-
     const computeShaderSource = @embedFile("shaders/compute.glsl");
 
-    // make textures
-
-    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: u16, texture_atlas_count: u16) !Self {
+    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         var self: Self = undefined;
 
         if (!glfw.init(.{})) {
@@ -138,6 +147,7 @@ pub const Renderer = struct {
         self.shader_height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
         self.shader_max_walls_loc = gl.getUniformLocation(shaderProgram, "max_walls");
         self.shader_render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
+        self.shader_texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
 
         const computeShader = gl.createShader(.compute);
 
@@ -184,6 +194,7 @@ pub const Renderer = struct {
         const VAO = gl.genVertexArray();
 
         const wallSSBO = gl.genBuffer();
+        const textureSSBO = gl.genBuffer();
         const cameraSSBO = gl.genBuffer();
         const resultsSSBO = gl.genBuffer();
 
@@ -206,6 +217,10 @@ pub const Renderer = struct {
         gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 2, resultsSSBO);
 
+        gl.bindBuffer(textureSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, Texture, &[_]Texture{}, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 3, textureSSBO);
+
         gl.bindVertexArray(VAO);
         gl.bindBuffer(VBO, .array_buffer);
 
@@ -215,17 +230,6 @@ pub const Renderer = struct {
         gl.enableVertexAttribArray(0);
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
-        // gen texture, bind texture, texture size, texture array data
-
-        // multiple texture atlasses
-        // 3d textures (regular width and hright, but depth is used for the texture id)
-        // multiple texture atlas sizes:
-        // small: 512
-        // med: 1024
-        // large: 2048
-        // huge: 4096
-        // etc etc
-        // need a place and time to initialize this when the texture atlas is ready
 
         const texture_atlas = gl.genTexture();
         gl.bindTexture(texture_atlas, .@"2d_array");
@@ -237,13 +241,17 @@ pub const Renderer = struct {
             texture_atlas_size,
             texture_atlas_count,
             .rgba,
-            .byte,
+            .unsigned_byte,
             null,
         );
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
         if (display_method == .FullScreen) window.maximize();
+
+        const texture_list: std.ArrayList(Texture) = .init(allocator);
+
+        self.texture_list = texture_list;
 
         self.allocator = allocator;
         self.width = width;
@@ -254,9 +262,14 @@ pub const Renderer = struct {
         self.shaderProgram = shaderProgram;
         self.computeShader = computeShader;
         self.computeProgram = computeProgram;
+        self.texture_atlas = texture_atlas;
+        self.texture_atlas_size = texture_atlas_size;
+        // work on a system for loading and unloading texture atlases
+        self.texture_atlas_count = 0;
         self.VAO = VAO;
         self.VBO = VBO;
         self.wallSSBO = wallSSBO;
+        self.textureSSBO = textureSSBO;
         self.cameraSSBO = cameraSSBO;
         self.resultsSSBO = resultsSSBO;
         self.result_buffer = result_buffer;
@@ -282,10 +295,33 @@ pub const Renderer = struct {
         glfw.terminate();
     }
 
-    pub fn add_texture_atlas(self: *Self, data: []u8) usize {
-        // make this
-        _ = self;
-        _ = data;
+    pub fn load_texture_atlas(self: *Self, data: []const u8) !u32 {
+        const data_c = try self.allocator.dupeZ(u8, data);
+        defer self.allocator.free(data_c);
+        gl.activeTexture(.texture_0);
+        gl.bindTexture(self.texture_atlas, .@"2d_array");
+        gl.texSubImage3D(
+            .@"2d_array",
+            0,
+            0,
+            0,
+            self.texture_atlas_count,
+            self.texture_atlas_size,
+            self.texture_atlas_size,
+            1,
+            .rgba,
+            .unsigned_byte,
+            data_c.ptr,
+        );
+        const pos = self.texture_atlas_count;
+        self.*.texture_atlas_count += 1;
+        return @as(u32, @intCast(pos));
+    }
+
+    pub fn add_texture(self: *Self, texture: Texture) !u32 {
+        const pos = self.texture_list.items.len;
+        try self.texture_list.append(texture);
+        return @as(u32, @intCast(pos));
     }
 
     pub fn render_update(self: *Self, camera: *objects.Camera) !void {
@@ -310,6 +346,7 @@ pub const Renderer = struct {
 
     pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) !void {
         const walls = world_struct.walls.items;
+        const textures = self.texture_list.items;
 
         try render_update(self, camera);
 
@@ -318,6 +355,9 @@ pub const Renderer = struct {
 
         gl.bindBuffer(self.cameraSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{camera.*}, .dynamic_draw);
+
+        gl.bindBuffer(self.textureSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, Texture, textures, .dynamic_draw);
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
 
@@ -342,6 +382,10 @@ pub const Renderer = struct {
         gl.uniform1i(self.shader_height_loc, @intCast(self.height));
         gl.uniform1ui(self.shader_max_walls_loc, self.max_walls);
         gl.uniform1ui(self.shader_render_scale_loc, self.render_scale);
+
+        gl.activeTexture(.texture_0);
+        gl.bindTexture(self.texture_atlas, .@"2d_array");
+        gl.uniform1i(self.shader_texture_atlas_loc, 0);
 
         gl.bindVertexArray(self.VAO);
         gl.drawArrays(.triangles, 0, 6);

@@ -7,6 +7,7 @@ const json = std.json;
 
 const zlua = @import("zlua");
 const glfw = @import("glfw");
+const zigimg = @import("zigimg");
 
 const tool_class = @import("tools.zig");
 const renderer_class = @import("renderer.zig");
@@ -20,15 +21,14 @@ const Settings = struct {
     walkspeed: f32,
     camera_sensitivity: f32,
     fov: f32,
-    pitch_offset: bool,
     frame_rate: u32,
     max_walls: u32,
     render_scale: u32,
     width: u32,
     height: u32,
     fullscreen: bool,
-    texture_atlas_size: u16,
-    texture_atlas_count: u16,
+    texture_atlas_size: usize,
+    texture_atlas_count: usize,
 };
 
 pub fn main() !void {
@@ -39,6 +39,13 @@ pub fn main() !void {
 
     var tools: tool_class.Tools = try .init(allocator);
     defer tools.deinit();
+
+    //const atlas_path = try tools.path_from_binary("atlas.png");
+    var atlas_2_image = try zigimg.Image.fromFilePath(allocator, "test.png");
+    defer atlas_2_image.deinit();
+    try atlas_2_image.convert(.rgba32);
+    try atlas_2_image.flipVertically();
+    const atlas_2 = atlas_2_image.rawBytes();
 
     const settings_file = try tools.path_from_binary("settings.json");
     const settings_content = try tools.read_file_from_path(settings_file);
@@ -57,10 +64,15 @@ pub fn main() !void {
     var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_walls, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
+    const atlas = try renderer.load_texture_atlas(atlas_2);
+    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .flip_h = false, .flip_v = false };
+
+    const texture_id = try renderer.add_texture(texture);
+
     camera = .init(vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, vectors.Vec3{ .x = 0, .y = 90, .z = 0 }, settings.fov, settings.width);
 
-    _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 3, .z = 2 }, .end = .{ .x = 4, .y = 0, .z = 2 }, .height = 1.0, .texture_id = 0 });
-    _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 0, .z = -2 }, .end = .{ .x = 4, .y = 0, .z = -2 }, .height = 1.0, .texture_id = 0 });
+    _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 3, .z = 2 }, .end = .{ .x = 4, .y = 0, .z = 2 }, .height = 1.0, .texture_id = texture_id });
+    _ = try world_struct.addWall(.{ .start = .{ .x = -5, .y = 0, .z = -2 }, .end = .{ .x = 5, .y = 0, .z = -2 }, .height = 10.0, .texture_id = texture_id });
 
     // const script_path = try tools.path_from_binaryZ("test.lua");
 
