@@ -144,6 +144,7 @@ pub const Renderer = struct {
         if (status == 0) {
             infoLog = try gl.getShaderInfoLog(vertexShader, allocator);
             std.log.err("{s}", .{infoLog});
+            defer allocator.free(infoLog);
             return error.FailedToMakeVertexShader;
         }
 
@@ -156,6 +157,7 @@ pub const Renderer = struct {
         if (status == 0) {
             infoLog = try gl.getShaderInfoLog(fragmentShader, allocator);
             std.log.err("{s}", .{infoLog});
+            defer allocator.free(infoLog);
             return error.FailedToMakeFragmentShader;
         }
 
@@ -169,6 +171,7 @@ pub const Renderer = struct {
         if (status == 0) {
             infoLog = try gl.getProgramInfoLog(shaderProgram, allocator);
             std.log.err("{s}", .{infoLog});
+            defer allocator.free(infoLog);
             return error.FailedToMakeShaderProgram;
         }
         gl.useProgram(shaderProgram);
@@ -188,6 +191,7 @@ pub const Renderer = struct {
         if (status == 0) {
             infoLog = try gl.getShaderInfoLog(computeShader, allocator);
             std.log.err("{s}", .{infoLog});
+            defer allocator.free(infoLog);
             return error.FailedToMakeComputeShader;
         }
 
@@ -199,6 +203,7 @@ pub const Renderer = struct {
         if (status == 0) {
             infoLog = try gl.getProgramInfoLog(computeProgram, allocator);
             std.log.err("{s}", .{infoLog});
+            defer allocator.free(infoLog);
             return error.FailedToMakeComputeProgram;
         }
 
