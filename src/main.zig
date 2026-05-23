@@ -41,7 +41,8 @@ pub fn main() !void {
 
     const fps_milli: i64 = @divTrunc(1000, 120);
 
-    const atlas_path = try tools.path_from_binary("test.png");
+    const atlas_path = try tools.path_from_binary(allocator, "test.png");
+    defer allocator.free(atlas_path);
     var atlas_2_image = try zigimg.Image.fromFilePath(allocator, atlas_path);
     defer atlas_2_image.deinit();
     try atlas_2_image.convert(.rgba32);
@@ -59,11 +60,10 @@ pub fn main() !void {
     var world_struct: world_class.World = try .init(allocator);
     defer world_struct.deinit();
 
-    var display_method: renderer_class.DisplayMethod = undefined;
+    var display_method: renderer_class.DisplayMethod = .Windowed;
 
-    if (settings.fullscreen) {
+    if (settings.fullscreen)
         display_method = .Borderless;
-    }
 
     var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_walls, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
