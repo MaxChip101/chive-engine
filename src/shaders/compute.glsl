@@ -2,11 +2,6 @@
 
 const float INF = 1e10;
 
-struct Texture {
-    ivec2 dimensions;
-    vec4 pixels[];
-};
-
 struct Wall {
     vec3 start;
     float height;
