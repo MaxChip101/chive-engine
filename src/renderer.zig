@@ -75,23 +75,53 @@ pub const Renderer = struct {
     pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         var self: Self = undefined;
 
-        if (!glfw.init(.{ .platform = .wayland })) {
+        var init_status = glfw.init(.{ .platform = .wayland });
+
+        if (!init_status) {
+            std.log.info("Failed to init Wayland, trying alternative", .{});
+            init_status = glfw.init(.{});
+        }
+
+        if (!init_status) {
             return error.GLFWInitFailed;
         }
 
         const name_c = try allocator.dupeZ(u8, name);
         defer allocator.free(name_c);
 
-        const window = glfw.Window.create(width, height, name_c, null, null, .{
+        var hints: glfw.Window.Hints = .{
             .opengl_profile = .opengl_core_profile,
             .context_version_major = 4,
             .context_version_minor = 5,
-        }) orelse {
+        };
+
+        const monitor = if (display_method == .FullScreen or display_method == .Borderless)
+            glfw.Monitor.getPrimary()
+        else
+            null;
+
+        const video_mode = monitor.?.getVideoMode();
+
+        if (display_method == .Borderless) {
+            hints.decorated = false;
+            hints.red_bits = @intCast(video_mode.?.getRedBits());
+            hints.green_bits = @intCast(video_mode.?.getGreenBits());
+            hints.blue_bits = @intCast(video_mode.?.getBlueBits());
+            hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
+        }
+
+        const window_width = if (display_method == .Borderless) video_mode.?.getWidth() else width;
+        const window_height = if (display_method == .Borderless) video_mode.?.getHeight() else height;
+
+        const window = glfw.Window.create(window_width, window_height, name_c, null, null, hints) orelse {
             return error.GLFWWindowCreateFailed;
         };
 
+        if (display_method == .Borderless)
+            window.setPos(.{ .x = 0, .y = 0 });
+
         glfw.makeContextCurrent(window);
-        glfw.swapInterval(1);
+        //glfw.swapInterval();
         glfw.Window.setFramebufferSizeCallback(window, framebuffer_size_callback);
 
         const proc: glfw.GLProc = undefined;
@@ -247,8 +277,6 @@ pub const Renderer = struct {
         );
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
-
-        if (display_method == .FullScreen) window.maximize();
 
         const texture_list: std.ArrayList(Texture) = .init(allocator);
 

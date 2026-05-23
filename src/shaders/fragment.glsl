@@ -1,6 +1,7 @@
 #version 450 core
 
 const float INF = 1e10;
+const vec4 background = vec4(0, 0, 0, 0);
 
 struct Texture {
     vec2 uv_min;
@@ -66,36 +67,45 @@ void main() {
     // loop over array & blend as needed
     // apply textures and make colors mix only when translucent
 
-    vec4 pixel_color = vec4(0, 0, 0, 0);
+    vec4 pixel_color = background;
 
     for (uint i = x * max_walls; i < max_walls * (x + 1); i++) {
         const RaycastResult hit = result[i];
         if (hit.distance > INF) {
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-            continue;
+            break;
         }
         const Wall wall = walls[hit.wall_id];
-        const Texture tex = textures[wall.texture_id];
 
         const float cr = hit.distance * cos(camera.rotation.y - hit.rotation);
         const float world_y = camera.position.y + cr * perspective;
         const float wall_y_bottom = wall.start.y + hit.position * (wall.end.y - wall.start.y);
         const float wall_y_top = wall_y_bottom + wall.height;
-        const float shade = 1 / (0.3 * cr);
+
+        if (!(world_y >= wall_y_bottom && world_y <= wall_y_top)) continue;
+
+        const Texture tex = textures[wall.texture_id];
 
         float u = mix(tex.uv_min.x, tex.uv_max.x, hit.position);
         float v = mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom) / wall.height);
 
         if (tex.flip_v) u *= -1;
         if (tex.flip_h) v *= -1;
-
-        vec4 pixel = texture(texture_atlas, vec3(u, v, float(tex.atlas_id)));
+        
+        vec4 pixel = textureLod(texture_atlas, vec3(u, v, float(tex.atlas_id)), 0.0);
+        const float shade = 1 / (0.3 * cr);
 
         pixel.rgb *= shade;
-
-        if (world_y >= wall_y_bottom && world_y <= wall_y_top) {
-            if (pixel_color == vec4(0, 0, 0, 0) && pixel.a == 1.0) {
+        if (pixel_color == background) {
+            if (pixel.a >= 0.99) {
+                FragColor = pixel;
+                return;
+            } else if (pixel.a > 0.01) {
                 pixel_color = pixel + pixel_color * (1.0 - pixel.a);
+                if (pixel_color.a >= 0.99) {
+                    FragColor = pixel_color;
+                    return;
+                }
             }
         }
     }
