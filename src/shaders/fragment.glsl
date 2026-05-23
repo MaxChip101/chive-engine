@@ -1,5 +1,7 @@
 #version 450 core
 
+const float INF = 1e10;
+
 struct Texture {
     vec2 uv_min;
     vec2 uv_max;
@@ -68,7 +70,7 @@ void main() {
 
     for (uint i = x * max_walls; i < max_walls * (x + 1); i++) {
         const RaycastResult hit = result[i];
-        if (isinf(hit.distance)) {
+        if (hit.distance > INF) {
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);
             continue;
         }

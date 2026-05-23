@@ -9,7 +9,7 @@ const zlua = @import("zlua");
 const glfw = @import("glfw");
 const zigimg = @import("zigimg");
 
-const tool_class = @import("tools.zig");
+const tools = @import("tools.zig");
 const renderer_class = @import("renderer.zig");
 const world_class = @import("world.zig");
 const objects = @import("objects.zig");
@@ -34,11 +34,13 @@ const Settings = struct {
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        //fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) @panic("TEST FAIL");
+    }
 
     const fps_milli: i64 = @divTrunc(1000, 120);
-
-    var tools: tool_class.Tools = try .init(allocator);
-    defer tools.deinit();
 
     //const atlas_path = try tools.path_from_binary("atlas.png");
     var atlas_2_image = try zigimg.Image.fromFilePath(allocator, "test.png");
@@ -47,9 +49,12 @@ pub fn main() !void {
     try atlas_2_image.flipVertically();
     const atlas_2 = atlas_2_image.rawBytes();
 
-    const settings_file = try tools.path_from_binary("settings.json");
-    const settings_content = try tools.read_file_from_path(settings_file);
+    const settings_file = try tools.path_from_binary(allocator, "settings.json");
+    defer allocator.free(settings_file);
+    const settings_content = try tools.read_file_from_path(allocator, settings_file);
+    defer allocator.free(settings_content);
     const settings_json = try json.parseFromSlice(Settings, allocator, settings_content, .{});
+    defer settings_json.deinit();
     const settings = settings_json.value;
 
     var world_struct: world_class.World = try .init(allocator);

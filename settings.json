@@ -1,0 +1,13 @@
+{
+    "walkspeed": 3,
+    "camera_sensitivity": 10,
+    "fov": 90,
+    "frame_rate": 240,
+    "max_walls": 32,
+    "render_scale": 1,
+    "width": 800,
+    "height": 600,
+    "fullscreen": true,
+    "texture_atlas_size": 1024,
+    "texture_atlas_count": 1
+}

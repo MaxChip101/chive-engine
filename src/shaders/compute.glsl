@@ -1,6 +1,6 @@
 #version 450 core
 
-const float PI = asin(1) * 2;
+const float INF = 1e10;
 
 struct Texture {
     ivec2 dimensions;
@@ -65,7 +65,7 @@ void main() {
 
     for (int i = 0; i < max_walls; i++) {
         uint id = 0;
-        float distance = 1.0 / 0.0;
+        float distance = INF;
         float position = 0;
 
         for (int wall_id = 0; wall_id < wall_count; wall_id++) {
@@ -82,7 +82,7 @@ void main() {
             position = t;
             id = wall_id;
         }
-        if (!isinf(distance)) last_biggest_distance = distance;
+        if (distance < INF) last_biggest_distance = distance;
         uint result_pos = i + pixel_x * max_walls;
         result[result_pos].wall_id = id;
         result[result_pos].position = position;

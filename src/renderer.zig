@@ -75,7 +75,7 @@ pub const Renderer = struct {
     pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         var self: Self = undefined;
 
-        if (!glfw.init(.{})) {
+        if (!glfw.init(.{ .platform = .wayland })) {
             return error.GLFWInitFailed;
         }
 
@@ -91,6 +91,7 @@ pub const Renderer = struct {
         };
 
         glfw.makeContextCurrent(window);
+        glfw.swapInterval(1);
         glfw.Window.setFramebufferSizeCallback(window, framebuffer_size_callback);
 
         const proc: glfw.GLProc = undefined;
@@ -103,7 +104,6 @@ pub const Renderer = struct {
         };
 
         const vertexShader = gl.createShader(.vertex);
-
         gl.shaderSource(vertexShader, 1, &.{vertexShaderSource});
         gl.compileShader(vertexShader);
 
@@ -212,6 +212,7 @@ pub const Renderer = struct {
         gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
 
         const result_buffer = try allocator.alloc(physics.RayCastResult, (width * max_walls) / render_scale);
+        errdefer allocator.free(result_buffer);
 
         gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
@@ -288,8 +289,11 @@ pub const Renderer = struct {
         gl.deleteVertexArray(self.VAO);
         gl.deleteBuffer(self.VBO);
         gl.deleteBuffer(self.wallSSBO);
+        gl.deleteBuffer(self.textureSSBO);
         gl.deleteBuffer(self.cameraSSBO);
         gl.deleteBuffer(self.resultsSSBO);
+        gl.deleteTexture(self.texture_atlas);
+        self.texture_list.deinit();
         self.allocator.free(self.result_buffer);
         self.window.destroy();
         glfw.terminate();
