@@ -41,8 +41,8 @@ pub fn main() !void {
 
     const fps_milli: i64 = @divTrunc(1000, 120);
 
-    //const atlas_path = try tools.path_from_binary("atlas.png");
-    var atlas_2_image = try zigimg.Image.fromFilePath(allocator, "test.png");
+    const atlas_path = try tools.path_from_binary("test.png");
+    var atlas_2_image = try zigimg.Image.fromFilePath(allocator, atlas_path);
     defer atlas_2_image.deinit();
     try atlas_2_image.convert(.rgba32);
     try atlas_2_image.flipVertically();

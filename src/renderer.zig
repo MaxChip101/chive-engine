@@ -89,6 +89,10 @@ pub const Renderer = struct {
         const name_c = try allocator.dupeZ(u8, name);
         defer allocator.free(name_c);
 
+        // fix the launch options
+        // launch on the monitor that is focused
+        // fix fullscreen and borderless for linux (may be fixed for windows or broken)
+
         var hints: glfw.Window.Hints = .{
             .opengl_profile = .opengl_core_profile,
             .context_version_major = 4,
@@ -372,7 +376,7 @@ pub const Renderer = struct {
             .distance = math.inf(f32),
             .position = 0,
             .wall_id = 0,
-            .rotation = 0,
+            .corrected_distance = 0,
         });
 
         gl.bindBuffer(self.resultsSSBO, .shader_storage_buffer);

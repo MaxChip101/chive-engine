@@ -9,5 +9,5 @@ pub const RayCastResult = extern struct {
     wall_id: u32,
     distance: f32,
     position: f32,
-    rotation: f32,
+    corrected_distance: f32,
 };

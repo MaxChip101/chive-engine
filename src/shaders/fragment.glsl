@@ -30,7 +30,7 @@ struct RaycastResult {
     uint wall_id;
     float distance;
     float position;
-    float rotation;
+    float corrected_distance;
 };
 
 layout(std430, binding = 0) readonly buffer WallBuffer {
@@ -77,7 +77,7 @@ void main() {
         }
         const Wall wall = walls[hit.wall_id];
 
-        const float cr = hit.distance * cos(camera.rotation.y - hit.rotation);
+        const float cr = hit.corrected_distance;
         const float world_y = camera.position.y + cr * perspective;
         const float wall_y_bottom = wall.start.y + hit.position * (wall.end.y - wall.start.y);
         const float wall_y_top = wall_y_bottom + wall.height;

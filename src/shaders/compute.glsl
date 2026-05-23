@@ -20,7 +20,7 @@ struct RaycastResult {
     uint wall_id;
     float distance;
     float position;
-    float rotation;
+    float corrected_distance;
 };
 
 layout(std430, binding = 0) readonly buffer WallBuffer {
@@ -82,6 +82,6 @@ void main() {
         result[result_pos].wall_id = id;
         result[result_pos].position = position;
         result[result_pos].distance = distance;
-        result[result_pos].rotation = angle;
+        result[result_pos].corrected_distance = distance * cos(camera.rotation.y - angle);
     }
 }
