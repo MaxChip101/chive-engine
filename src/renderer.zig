@@ -73,8 +73,6 @@ pub const Renderer = struct {
     const computeShaderSource = @embedFile("shaders/compute.glsl");
 
     pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
-        var self: Self = undefined;
-
         var init_status = glfw.init(.{ .platform = .wayland });
 
         if (!init_status) {
@@ -99,7 +97,7 @@ pub const Renderer = struct {
             .context_version_minor = 5,
         };
 
-        const monitor = if (display_method == .FullScreen or display_method == .Borderless)
+        var monitor = if (display_method == .FullScreen or display_method == .Borderless)
             glfw.Monitor.getPrimary()
         else
             null;
@@ -121,6 +119,10 @@ pub const Renderer = struct {
             return error.GLFWWindowCreateFailed;
         };
 
+        if (display_method == .FullScreen or display_method == .Borderless) {
+            window.maximize();
+        }
+
         if (display_method == .Borderless)
             window.setPos(.{ .x = 0, .y = 0 });
 
@@ -141,12 +143,10 @@ pub const Renderer = struct {
         gl.shaderSource(vertexShader, 1, &.{vertexShaderSource});
         gl.compileShader(vertexShader);
 
-        var status: c_int = undefined;
-        var infoLog: [:0]const u8 = undefined;
+        var status: c_int = gl.getShader(vertexShader, .compile_status);
 
-        status = gl.getShader(vertexShader, .compile_status);
         if (status == 0) {
-            infoLog = try gl.getShaderInfoLog(vertexShader, allocator);
+            const infoLog = try gl.getShaderInfoLog(vertexShader, allocator);
             std.log.err("{s}", .{infoLog});
             defer allocator.free(infoLog);
             return error.FailedToMakeVertexShader;
@@ -159,7 +159,7 @@ pub const Renderer = struct {
 
         status = gl.getShader(fragmentShader, .compile_status);
         if (status == 0) {
-            infoLog = try gl.getShaderInfoLog(fragmentShader, allocator);
+            const infoLog = try gl.getShaderInfoLog(fragmentShader, allocator);
             std.log.err("{s}", .{infoLog});
             defer allocator.free(infoLog);
             return error.FailedToMakeFragmentShader;
@@ -173,18 +173,18 @@ pub const Renderer = struct {
 
         status = gl.getProgram(shaderProgram, .link_status);
         if (status == 0) {
-            infoLog = try gl.getProgramInfoLog(shaderProgram, allocator);
+            const infoLog = try gl.getProgramInfoLog(shaderProgram, allocator);
             std.log.err("{s}", .{infoLog});
             defer allocator.free(infoLog);
             return error.FailedToMakeShaderProgram;
         }
         gl.useProgram(shaderProgram);
 
-        self.shader_width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
-        self.shader_height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
-        self.shader_max_walls_loc = gl.getUniformLocation(shaderProgram, "max_walls");
-        self.shader_render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
-        self.shader_texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
+        const shader_width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
+        const shader_height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
+        const shader_max_walls_loc = gl.getUniformLocation(shaderProgram, "max_walls");
+        const shader_render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
+        const shader_texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
 
         const computeShader = gl.createShader(.compute);
 
@@ -193,7 +193,7 @@ pub const Renderer = struct {
 
         status = gl.getShader(computeShader, .compile_status);
         if (status == 0) {
-            infoLog = try gl.getShaderInfoLog(computeShader, allocator);
+            const infoLog = try gl.getShaderInfoLog(computeShader, allocator);
             std.log.err("{s}", .{infoLog});
             defer allocator.free(infoLog);
             return error.FailedToMakeComputeShader;
@@ -205,7 +205,7 @@ pub const Renderer = struct {
 
         status = gl.getProgram(computeProgram, .link_status);
         if (status == 0) {
-            infoLog = try gl.getProgramInfoLog(computeProgram, allocator);
+            const infoLog = try gl.getProgramInfoLog(computeProgram, allocator);
             std.log.err("{s}", .{infoLog});
             defer allocator.free(infoLog);
             return error.FailedToMakeComputeProgram;
@@ -213,11 +213,11 @@ pub const Renderer = struct {
 
         gl.useProgram(computeProgram);
 
-        self.compute_width_loc = gl.getUniformLocation(computeProgram, "screen_width");
-        self.compute_height_loc = gl.getUniformLocation(computeProgram, "screen_height");
-        self.compute_wall_count_loc = gl.getUniformLocation(computeProgram, "wall_count");
-        self.compute_max_walls_loc = gl.getUniformLocation(computeProgram, "max_walls");
-        self.compute_render_scale_loc = gl.getUniformLocation(computeProgram, "render_scale");
+        const compute_width_loc = gl.getUniformLocation(computeProgram, "screen_width");
+        const compute_height_loc = gl.getUniformLocation(computeProgram, "screen_height");
+        const compute_wall_count_loc = gl.getUniformLocation(computeProgram, "wall_count");
+        const compute_max_walls_loc = gl.getUniformLocation(computeProgram, "max_walls");
+        const compute_render_scale_loc = gl.getUniformLocation(computeProgram, "render_scale");
 
         var vertices = [_]f32{
             -1.0, 1.0, //
@@ -284,37 +284,48 @@ pub const Renderer = struct {
             .unsigned_byte,
             null,
         );
-        gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest);
+        gl.generateMipmap(.@"2d_array");
+        gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest_mipmap_linear);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
         const texture_list: std.ArrayList(Texture) = .init(allocator);
 
-        self.texture_list = texture_list;
-
-        self.allocator = allocator;
-        self.width = width;
-        self.height = height;
-        self.window = window;
-        self.fragmentShader = fragmentShader;
-        self.vertexShader = vertexShader;
-        self.shaderProgram = shaderProgram;
-        self.computeShader = computeShader;
-        self.computeProgram = computeProgram;
-        self.texture_atlas = texture_atlas;
-        self.texture_atlas_size = texture_atlas_size;
         // work on a system for loading and unloading texture atlases
-        self.texture_atlas_count = 0;
-        self.VAO = VAO;
-        self.VBO = VBO;
-        self.wallSSBO = wallSSBO;
-        self.textureSSBO = textureSSBO;
-        self.cameraSSBO = cameraSSBO;
-        self.resultsSSBO = resultsSSBO;
-        self.result_buffer = result_buffer;
-        self.max_walls = max_walls;
-        self.render_scale = render_scale;
 
-        return self;
+        return .{
+            .allocator = allocator,
+            .width = window_width,
+            .height = window_height,
+            .window = window,
+            .fragmentShader = fragmentShader,
+            .vertexShader = vertexShader,
+            .shaderProgram = shaderProgram,
+            .computeShader = computeShader,
+            .computeProgram = computeProgram,
+            .texture_atlas = texture_atlas,
+            .texture_atlas_size = texture_atlas_size,
+            .texture_atlas_count = 0,
+            .texture_list = texture_list,
+            .VAO = VAO,
+            .VBO = VBO,
+            .wallSSBO = wallSSBO,
+            .textureSSBO = textureSSBO,
+            .cameraSSBO = cameraSSBO,
+            .resultsSSBO = resultsSSBO,
+            .result_buffer = result_buffer,
+            .max_walls = max_walls,
+            .render_scale = render_scale,
+            .shader_width_loc = shader_width_loc,
+            .shader_height_loc = shader_height_loc,
+            .shader_max_walls_loc = shader_max_walls_loc,
+            .shader_texture_atlas_loc = shader_texture_atlas_loc,
+            .shader_render_scale_loc = shader_render_scale_loc,
+            .compute_width_loc = compute_width_loc,
+            .compute_height_loc = compute_height_loc,
+            .compute_max_walls_loc = compute_max_walls_loc,
+            .compute_render_scale_loc = compute_render_scale_loc,
+            .compute_wall_count_loc = compute_wall_count_loc,
+        };
     }
 
     pub fn deinit(self: *Self) void {

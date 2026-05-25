@@ -73,7 +73,7 @@ pub fn main() !void {
 
     const texture_id = try renderer.add_texture(texture);
 
-    camera = .init(vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, vectors.Vec3{ .x = 0, .y = 90, .z = 0 }, settings.fov, settings.width);
+    camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 90, .z = 0 }, settings.fov, settings.width);
 
     _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 3, .z = 2 }, .end = .{ .x = 4, .y = 0, .z = 2 }, .height = 1.0, .texture_id = texture_id });
     _ = try world_struct.addWall(.{ .start = .{ .x = -1, .y = 0, .z = -2 }, .end = .{ .x = 1, .y = 0, .z = -2 }, .height = 2.0, .texture_id = texture_id });

@@ -31,6 +31,10 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    if (target.result.os.tag == .windows) {
+        exe.subsystem = .Windows;
+    }
+
     exe.root_module.addImport("zgl", zgl.module("zgl"));
     exe.root_module.addImport("glfw", glfw_dep.module("glfw"));
     exe.root_module.addImport("zlua", lua_dep.module("zlua"));

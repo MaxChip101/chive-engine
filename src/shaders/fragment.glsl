@@ -67,7 +67,7 @@ void main() {
     // loop over array & blend as needed
     // apply textures and make colors mix only when translucent
 
-    vec4 pixel_color = background;
+    vec4 screen_pixel = background;
 
     for (uint i = x * max_walls; i < max_walls * (x + 1); i++) {
         const RaycastResult hit = result[i];
@@ -89,25 +89,26 @@ void main() {
         float u = mix(tex.uv_min.x, tex.uv_max.x, hit.position);
         float v = mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom) / wall.height);
 
-        if (tex.flip_v) u *= -1;
-        if (tex.flip_h) v *= -1;
+        if (tex.flip_v) u = 1.0 - u;
+        if (tex.flip_h) v = 1.0 - v;
         
-        vec4 pixel = textureLod(texture_atlas, vec3(u, v, float(tex.atlas_id)), 0.0);
-        const float shade = 1 / (0.3 * cr);
+        vec4 tex_pixel = textureLod(texture_atlas, vec3(u, v, float(tex.atlas_id)), 0.0);
+        const float shade = clamp(1 / (0.3 * cr), 0.0, 1.0);
 
-        pixel.rgb *= shade;
-        if (pixel_color == background) {
-            if (pixel.a >= 0.99) {
-                FragColor = pixel;
-                return;
-            } else if (pixel.a > 0.01) {
-                pixel_color = pixel + pixel_color * (1.0 - pixel.a);
-                if (pixel_color.a >= 0.99) {
-                    FragColor = pixel_color;
-                    return;
-                }
-            }
+        tex_pixel *= tex.tint;
+
+        tex_pixel.rgb *= shade;
+
+        if (tex_pixel.a < 0.01) continue;
+
+        screen_pixel.rgb += tex_pixel.rgb * tex_pixel.a * (1.0 - screen_pixel.a);
+        screen_pixel.a += tex_pixel.a * (1.0 - screen_pixel.a);
+
+
+        if (screen_pixel.a >= 0.99) {
+            break;
         }
     }
-    FragColor = pixel_color;
+
+    FragColor = screen_pixel;
 }
