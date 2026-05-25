@@ -102,6 +102,12 @@ pub const Renderer = struct {
         var window_width = width;
         var window_height = height;
 
+        // center windowed and borderless windowed in middle of screen
+        //var screen_center_x = 0;
+        //var screen_center_y = 0;
+
+        // fix borderless having random high fov
+
         var monitor: ?glfw.Monitor = null;
         if (display_method == .Borderless or display_method == .FullScreen or display_method == .BorderlessWindowed) {
             monitor = glfw.Monitor.getPrimary();
@@ -130,6 +136,7 @@ pub const Renderer = struct {
 
         if (display_method == .BorderlessWindowed) {
             window.setAttrib(.decorated, false);
+            // use this to set to middle of screen
             //window.setPos(.{ .x = 0, .y = 0 });
         }
 

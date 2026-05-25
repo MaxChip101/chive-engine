@@ -63,7 +63,7 @@ pub fn main() !void {
     var display_method: renderer_class.DisplayMethod = .Windowed;
 
     if (settings.fullscreen)
-        display_method = .BorderlessWindowed;
+        display_method = .FullScreen;
 
     var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_walls, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
