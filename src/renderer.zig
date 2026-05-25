@@ -87,10 +87,6 @@ pub const Renderer = struct {
         const name_c = try allocator.dupeZ(u8, name);
         defer allocator.free(name_c);
 
-        // fix the launch options
-        // launch on the monitor that is focused
-        // fix fullscreen and borderless for linux (may be fixed for windows or broken)
-
         var hints: glfw.Window.Hints = .{
             .opengl_profile = .opengl_core_profile,
             .context_version_major = 4,
@@ -102,31 +98,27 @@ pub const Renderer = struct {
         var window_width = width;
         var window_height = height;
 
-        // center windowed and borderless windowed in middle of screen
-        //var screen_center_x = 0;
-        //var screen_center_y = 0;
-
-        // fix borderless having random high fov
-
-        var monitor: ?glfw.Monitor = null;
-        if (display_method == .Borderless or display_method == .FullScreen or display_method == .BorderlessWindowed) {
-            monitor = glfw.Monitor.getPrimary();
-            const video_mode = monitor.?.getVideoMode();
-            if (display_method == .Borderless or display_method == .BorderlessWindowed) {
-                hints.decorated = false;
-                hints.red_bits = @intCast(video_mode.?.getRedBits());
-                hints.green_bits = @intCast(video_mode.?.getGreenBits());
-                hints.blue_bits = @intCast(video_mode.?.getBlueBits());
-                hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
-            }
-            if (display_method == .Borderless or display_method == .FullScreen) {
-                window_width = video_mode.?.getWidth();
-                window_height = video_mode.?.getHeight();
-                hints.maximized = true;
-            }
+        var monitor = glfw.Monitor.getPrimary();
+        const video_mode = monitor.?.getVideoMode();
+        if (display_method == .BorderlessWindowed or display_method == .Windowed) {
+            const screen_width: c_int = @intCast(video_mode.?.getWidth());
+            const screen_height: c_int = @intCast(video_mode.?.getHeight());
+            hints.position_x = @divTrunc(screen_width - @as(c_int, @intCast(window_width)), 2);
+            hints.position_y = @divTrunc(screen_height - @as(c_int, @intCast(window_height)), 2);
         }
-
-        if (display_method == .FullScreen or display_method == .BorderlessWindowed) {
+        if (display_method == .Borderless or display_method == .BorderlessWindowed) {
+            hints.decorated = false;
+            hints.red_bits = @intCast(video_mode.?.getRedBits());
+            hints.green_bits = @intCast(video_mode.?.getGreenBits());
+            hints.blue_bits = @intCast(video_mode.?.getBlueBits());
+            hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
+        }
+        if (display_method == .Borderless or display_method == .FullScreen) {
+            window_width = video_mode.?.getWidth();
+            window_height = video_mode.?.getHeight();
+            hints.maximized = true;
+        }
+        if (display_method == .FullScreen or display_method == .BorderlessWindowed or display_method == .Windowed) {
             monitor = null;
         }
 
@@ -136,8 +128,6 @@ pub const Renderer = struct {
 
         if (display_method == .BorderlessWindowed) {
             window.setAttrib(.decorated, false);
-            // use this to set to middle of screen
-            //window.setPos(.{ .x = 0, .y = 0 });
         }
 
         glfw.makeContextCurrent(window);
