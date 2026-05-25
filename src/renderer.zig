@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const heap = std.heap;
 const mem = std.mem;
 const math = std.math;
@@ -73,14 +74,12 @@ pub const Renderer = struct {
     const computeShaderSource = @embedFile("shaders/compute.glsl");
 
     pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
-        var init_status = glfw.init(.{ .platform = .wayland });
+        const glfw_init = switch (builtin.os.tag) {
+            .linux => glfw.init(.{ .platform = .wayland }),
+            else => glfw.init(.{}),
+        };
 
-        if (!init_status) {
-            std.log.info("Failed to init Wayland, trying alternative", .{});
-            init_status = glfw.init(.{});
-        }
-
-        if (!init_status) {
+        if (!glfw_init) {
             return error.GLFWInitFailed;
         }
 
@@ -97,10 +96,11 @@ pub const Renderer = struct {
             .context_version_minor = 5,
         };
 
-        var monitor = if (display_method == .FullScreen or display_method == .Borderless)
-            glfw.Monitor.getPrimary()
-        else
-            null;
+        var monitor: ?glfw.Monitor = null;
+        if (display_method == .FullScreen or display_method == .Borderless) {
+            monitor = glfw.Monitor.getPrimary();
+            hints.maximized = true;
+        }
 
         const video_mode = monitor.?.getVideoMode();
 
@@ -120,7 +120,8 @@ pub const Renderer = struct {
         };
 
         if (display_method == .FullScreen or display_method == .Borderless) {
-            window.maximize();
+            window.setAttrib(.decorated, false);
+            //window.maximize();
         }
 
         if (display_method == .Borderless)

@@ -31,9 +31,9 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    if (target.result.os.tag == .windows) {
-        exe.subsystem = .Windows;
-    }
+    // if (target.result.os.tag == .windows) {
+    //     exe.subsystem = .Windows;
+    // }
 
     exe.root_module.addImport("zgl", zgl.module("zgl"));
     exe.root_module.addImport("glfw", glfw_dep.module("glfw"));
