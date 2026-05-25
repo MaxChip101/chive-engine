@@ -15,6 +15,7 @@ pub const DisplayMethod = enum {
     Windowed,
     FullScreen,
     Borderless,
+    BorderlessWindowed,
 };
 
 pub const Texture = struct {
@@ -94,38 +95,43 @@ pub const Renderer = struct {
             .opengl_profile = .opengl_core_profile,
             .context_version_major = 4,
             .context_version_minor = 5,
+            .focus_on_show = true,
+            .focused = true,
         };
 
+        var window_width = width;
+        var window_height = height;
+
         var monitor: ?glfw.Monitor = null;
-        if (display_method == .FullScreen or display_method == .Borderless) {
+        if (display_method == .Borderless or display_method == .FullScreen or display_method == .BorderlessWindowed) {
             monitor = glfw.Monitor.getPrimary();
-            hints.maximized = true;
+            const video_mode = monitor.?.getVideoMode();
+            if (display_method == .Borderless or display_method == .BorderlessWindowed) {
+                hints.decorated = false;
+                hints.red_bits = @intCast(video_mode.?.getRedBits());
+                hints.green_bits = @intCast(video_mode.?.getGreenBits());
+                hints.blue_bits = @intCast(video_mode.?.getBlueBits());
+                hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
+            }
+            if (display_method == .Borderless or display_method == .FullScreen) {
+                window_width = video_mode.?.getWidth();
+                window_height = video_mode.?.getHeight();
+                hints.maximized = true;
+            }
         }
 
-        const video_mode = monitor.?.getVideoMode();
-
-        if (display_method == .Borderless) {
-            hints.decorated = false;
-            hints.red_bits = @intCast(video_mode.?.getRedBits());
-            hints.green_bits = @intCast(video_mode.?.getGreenBits());
-            hints.blue_bits = @intCast(video_mode.?.getBlueBits());
-            hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
+        if (display_method == .FullScreen or display_method == .BorderlessWindowed) {
+            monitor = null;
         }
 
-        const window_width = if (display_method == .Borderless) video_mode.?.getWidth() else width;
-        const window_height = if (display_method == .Borderless) video_mode.?.getHeight() else height;
-
-        const window = glfw.Window.create(window_width, window_height, name_c, null, null, hints) orelse {
+        const window = glfw.Window.create(window_width, window_height, name_c, monitor, null, hints) orelse {
             return error.GLFWWindowCreateFailed;
         };
 
-        if (display_method == .FullScreen or display_method == .Borderless) {
+        if (display_method == .BorderlessWindowed) {
             window.setAttrib(.decorated, false);
-            //window.maximize();
+            //window.setPos(.{ .x = 0, .y = 0 });
         }
-
-        if (display_method == .Borderless)
-            window.setPos(.{ .x = 0, .y = 0 });
 
         glfw.makeContextCurrent(window);
         //glfw.swapInterval();
@@ -251,7 +257,7 @@ pub const Renderer = struct {
         }}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
 
-        const result_buffer = try allocator.alloc(physics.RayCastResult, (width * max_walls) / render_scale);
+        const result_buffer = try allocator.alloc(physics.RayCastResult, (window_width * max_walls) / render_scale);
         errdefer allocator.free(result_buffer);
 
         gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
