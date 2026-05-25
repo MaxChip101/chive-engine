@@ -39,8 +39,6 @@ pub fn main() !void {
         if (deinit_status == .leak) @panic("TEST FAIL");
     }
 
-    const fps_milli: i64 = @divTrunc(1000, 120);
-
     const atlas_path = try tools.path_from_binary(allocator, "test.png");
     defer allocator.free(atlas_path);
     var atlas_2_image = try zigimg.Image.fromFilePath(allocator, atlas_path);
@@ -56,6 +54,8 @@ pub fn main() !void {
     const settings_json = try json.parseFromSlice(Settings, allocator, settings_content, .{});
     defer settings_json.deinit();
     const settings = settings_json.value;
+
+    const fps_milli: i64 = @divTrunc(1000, settings.frame_rate);
 
     var world_struct: world_class.World = try .init(allocator);
     defer world_struct.deinit();
