@@ -18,13 +18,20 @@ pub const DisplayMethod = enum {
     BorderlessWindowed,
 };
 
+pub const TextureType = enum(u32) {
+    Stretch = 0,
+    Tile = 1,
+};
+
 pub const Texture = struct {
     uv_min: vectors.Vec2,
     uv_max: vectors.Vec2,
-    tint: vectors.Color,
+    tex_type: TextureType,
     altas_id: u32,
     flip_v: bool,
     flip_h: bool,
+    tint: vectors.Color,
+    tex_size: vectors.Vec2,
 };
 
 pub const Renderer = struct {

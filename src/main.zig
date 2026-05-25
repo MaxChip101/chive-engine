@@ -63,20 +63,20 @@ pub fn main() !void {
     var display_method: renderer_class.DisplayMethod = .Windowed;
 
     if (settings.fullscreen)
-        display_method = .Borderless;
+        display_method = .Windowed;
 
     var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_walls, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
     const atlas = try renderer.load_texture_atlas(atlas_2);
-    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .flip_h = false, .flip_v = false };
+    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Tile, .flip_h = false, .flip_v = false };
 
     const texture_id = try renderer.add_texture(texture);
 
     camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 90, .z = 0 }, settings.fov, renderer.width);
 
     _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 3, .z = 2 }, .end = .{ .x = 4, .y = 0, .z = 2 }, .height = 1.0, .texture_id = texture_id });
-    _ = try world_struct.addWall(.{ .start = .{ .x = -1, .y = 0, .z = -2 }, .end = .{ .x = 1, .y = 0, .z = -2 }, .height = 2.0, .texture_id = texture_id });
+    _ = try world_struct.addWall(.{ .start = .{ .x = -5, .y = 0, .z = -2 }, .end = .{ .x = 5, .y = 0, .z = -2 }, .height = 10.0, .texture_id = texture_id });
 
     // const script_path = try tools.path_from_binaryZ("test.lua");
 

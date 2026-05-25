@@ -3,13 +3,18 @@
 const float INF = 1e10;
 const vec4 background = vec4(0, 0, 0, 0);
 
+const uint TEXTURE_TYPE_STRETCH = 0;
+const uint TEXTURE_TYPE_TILE = 1;
+
 struct Texture {
     vec2 uv_min;
     vec2 uv_max;
-    vec4 tint;
+    uint type;
     uint atlas_id;
     bool flip_v;
     bool flip_h;
+    vec4 tint;
+    vec2 size;
 };
 
 struct Wall {
@@ -86,12 +91,24 @@ void main() {
 
         const Texture tex = textures[wall.texture_id];
 
-        float u = mix(tex.uv_min.x, tex.uv_max.x, hit.position);
-        float v = mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom) / wall.height);
+        float u;
+        float v;
+
+        switch (tex.type) {
+            case TEXTURE_TYPE_STRETCH:
+            u = 1.0 - mix(tex.uv_min.x, tex.uv_max.x, hit.position);
+            v = 1.0 - mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom) / wall.height);
+            break;
+            case TEXTURE_TYPE_TILE:
+            const float wall_width = length(wall.end.xyz - wall.start.xyz);
+            u = 1.0 - fract(mix(tex.uv_min.x, tex.uv_max.x, hit.position * wall_width));
+            v = 1.0 - fract(mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom)));
+            break;
+        }
 
         if (tex.flip_v) u = 1.0 - u;
         if (tex.flip_h) v = 1.0 - v;
-        
+
         vec4 tex_pixel = textureLod(texture_atlas, vec3(u, v, float(tex.atlas_id)), 0.0);
         const float shade = clamp(1 / (0.3 * cr), 0.0, 1.0);
 
@@ -103,7 +120,6 @@ void main() {
 
         screen_pixel.rgb += tex_pixel.rgb * tex_pixel.a * (1.0 - screen_pixel.a);
         screen_pixel.a += tex_pixel.a * (1.0 - screen_pixel.a);
-
 
         if (screen_pixel.a >= 0.99) {
             break;
