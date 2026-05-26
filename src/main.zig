@@ -79,6 +79,8 @@ pub fn main() !void {
     _ = try world_struct.addWall(.{ .start = .{ .x = -5, .y = 0, .z = -2 }, .end = .{ .x = 5, .y = 0, .z = -2 }, .height = 10.0, .texture_id = texture_id });
     _ = try world_struct.addWall(.{ .start = .{ .x = 4, .y = 2, .z = -2 }, .end = .{ .x = 4, .y = 2, .z = 2 }, .height = 2.0, .texture_id = texture_id });
 
+    _ = try world_struct.addPlane(.{ .start = .{ .x = -2, .y = -2 }, .end = .{ .x = 2, .y = 2 }, .vertical = 0, .texture_id = 0 });
+
     // const script_path = try tools.path_from_binaryZ("test.lua");
 
     // var lua = try zlua.Lua.init(allocator);

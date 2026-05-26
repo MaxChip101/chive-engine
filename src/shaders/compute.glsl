@@ -9,6 +9,13 @@ struct Wall {
     uint texture_id;
 };
 
+struct Plane {
+    vec2 start;
+    vec2 end;
+    float vertical;
+    uint texture_id;
+};
+
 struct Camera {
     vec3 position;
     float fov;
@@ -41,7 +48,13 @@ layout(std430, binding = 2) writeonly buffer RaycastBuffer {
     RaycastResult result[];
 };
 
+layout(std430, binding = 4) writeonly buffer PlaneBuffer {
+    RaycastResult result[];
+};
+
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+// plane rendering might just be this but rotated on an angle of sorts
 
 void main() {
     const uint x = gl_GlobalInvocationID.x;

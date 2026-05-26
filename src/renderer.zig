@@ -60,6 +60,7 @@ pub const Renderer = struct {
 
     texture_atlas: gl.Texture,
     texture_atlas_size: usize,
+    // replace with map
     texture_atlas_count: usize,
 
     compute_width_loc: ?u32,
@@ -138,7 +139,7 @@ pub const Renderer = struct {
         }
 
         glfw.makeContextCurrent(window);
-        //glfw.swapInterval();
+        //glfw.swapInterval(1);
         glfw.Window.setFramebufferSizeCallback(window, framebuffer_size_callback);
 
         const proc: glfw.GLProc = undefined;
@@ -244,9 +245,10 @@ pub const Renderer = struct {
         const VAO = gl.genVertexArray();
 
         const wallSSBO = gl.genBuffer();
-        const textureSSBO = gl.genBuffer();
         const cameraSSBO = gl.genBuffer();
         const resultsSSBO = gl.genBuffer();
+        const textureSSBO = gl.genBuffer();
+        const planeSSBO = gl.genBuffer();
 
         gl.bindBuffer(wallSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Wall, &[_]objects.Wall{}, .dynamic_draw);
@@ -271,6 +273,10 @@ pub const Renderer = struct {
         gl.bindBuffer(textureSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, Texture, &[_]Texture{}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 3, textureSSBO);
+
+        gl.bindBuffer(planeSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, Texture, &[_]objects.Plane{}, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 3, planeSSBO);
 
         gl.bindVertexArray(VAO);
         gl.bindBuffer(VBO, .array_buffer);
@@ -358,6 +364,7 @@ pub const Renderer = struct {
         glfw.terminate();
     }
 
+    // use maps
     pub fn load_texture_atlas(self: *Self, data: []const u8) !u32 {
         const data_c = try self.allocator.dupeZ(u8, data);
         defer self.allocator.free(data_c);
@@ -381,6 +388,9 @@ pub const Renderer = struct {
         return @as(u32, @intCast(pos));
     }
 
+    // editing atlases and unloading atlases?
+
+    // add unloading
     pub fn add_texture(self: *Self, texture: Texture) !u32 {
         const pos = self.texture_list.items.len;
         try self.texture_list.append(texture);

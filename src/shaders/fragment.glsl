@@ -24,6 +24,13 @@ struct Wall {
     uint texture_id;
 };
 
+struct Plane {
+    vec2 start;
+    vec2 end;
+    float vertical;
+    uint texture_id;
+};
+
 struct Camera {
     vec3 position;
     float fov;
@@ -61,6 +68,10 @@ layout(std430, binding = 3) readonly buffer TextureBuffer {
     Texture textures[];
 };
 
+layout(std430, binding = 4) readonly buffer PlaneBuffer {
+    Plane planes[];
+};
+
 out vec4 FragColor;
 
 void main() {
@@ -83,6 +94,9 @@ void main() {
             FragColor = vec4(0.0, 0.0, 0.0, 0.0);
             break;
         }
+
+        // implement plane rendering
+
         const Wall wall = walls[hit.wall_id];
 
         const float cr = hit.corrected_distance;

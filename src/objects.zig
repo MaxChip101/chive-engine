@@ -11,6 +11,13 @@ pub const Wall = extern struct {
     texture_id: u32,
 };
 
+pub const Plane = extern struct {
+    start: vectors.Vec2,
+    end: vectors.Vec2,
+    vertical: f32,
+    texture_id: u32,
+};
+
 pub const Camera = extern struct {
     position: vectors.Vec3,
     fov: f32,
