@@ -49,6 +49,7 @@ pub const Renderer = struct {
     VAO: gl.VertexArray,
     VBO: gl.Buffer,
     wallSSBO: gl.Buffer,
+    planeSSBO: gl.Buffer,
     textureSSBO: gl.Buffer,
     cameraSSBO: gl.Buffer,
     resultsSSBO: gl.Buffer,
@@ -275,7 +276,7 @@ pub const Renderer = struct {
         gl.bindBufferBase(.shader_storage_buffer, 3, textureSSBO);
 
         gl.bindBuffer(planeSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, Texture, &[_]objects.Plane{}, .dynamic_draw);
+        gl.bufferData(.shader_storage_buffer, objects.Plane, &[_]objects.Plane{}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 3, planeSSBO);
 
         gl.bindVertexArray(VAO);
@@ -326,6 +327,7 @@ pub const Renderer = struct {
             .VAO = VAO,
             .VBO = VBO,
             .wallSSBO = wallSSBO,
+            .planeSSBO = planeSSBO,
             .textureSSBO = textureSSBO,
             .cameraSSBO = cameraSSBO,
             .resultsSSBO = resultsSSBO,
@@ -354,6 +356,7 @@ pub const Renderer = struct {
         gl.deleteVertexArray(self.VAO);
         gl.deleteBuffer(self.VBO);
         gl.deleteBuffer(self.wallSSBO);
+        gl.deleteBuffer(self.planeSSBO);
         gl.deleteBuffer(self.textureSSBO);
         gl.deleteBuffer(self.cameraSSBO);
         gl.deleteBuffer(self.resultsSSBO);
@@ -419,12 +422,16 @@ pub const Renderer = struct {
 
     pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) !void {
         const walls = world_struct.walls.items;
+        const planes = world_struct.planes.items;
         const textures = self.texture_list.items;
 
         try render_update(self, camera);
 
         gl.bindBuffer(self.wallSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Wall, walls, .dynamic_draw);
+
+        gl.bindBuffer(self.planeSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Plane, planes, .dynamic_draw);
 
         gl.bindBuffer(self.cameraSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{camera.*}, .dynamic_draw);
