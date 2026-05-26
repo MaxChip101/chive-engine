@@ -64,13 +64,16 @@ layout(std430, binding = 3) readonly buffer TextureBuffer {
 out vec4 FragColor;
 
 void main() {
-    const uint x = uint(gl_FragCoord.x) / render_scale;
-    const float height = float(screen_height);
-    const float perspective = ((gl_FragCoord.y - height / 2.0) / camera.projection_distance) - tan(camera.rotation.x);
+    vec2 screen = vec2(screen_width, screen_height);
+    vec2 screen_coord = gl_FragCoord.xy - screen / 2.0;
+    vec2 rotated_coord = vec2(
+        screen_coord.x * cos(camera.rotation.z) - screen_coord.y * sin(camera.rotation.z),
+        screen_coord.x * sin(camera.rotation.z) + screen_coord.y * cos(camera.rotation.z)
+    ) + screen / 2.0;
 
-    // get array start & end for x coordinate range
-    // loop over array & blend as needed
-    // apply textures and make colors mix only when translucent
+    const uint x = uint(rotated_coord.x) / render_scale;
+    const float height = float(screen_height);
+    const float perspective = ((rotated_coord.y - height / 2.0) / camera.projection_distance) - tan(camera.rotation.x);
 
     vec4 screen_pixel = background;
 
@@ -96,12 +99,12 @@ void main() {
 
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
-            u = 1.0 - mix(tex.uv_min.x, tex.uv_max.x, hit.position);
+            u = mix(tex.uv_min.x, tex.uv_max.x, hit.position);
             v = 1.0 - mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom) / wall.height);
             break;
             case TEXTURE_TYPE_TILE:
             const float wall_width = length(wall.end.xyz - wall.start.xyz);
-            u = 1.0 - fract(mix(tex.uv_min.x, tex.uv_max.x, hit.position * wall_width));
+            u = fract(mix(tex.uv_min.x, tex.uv_max.x, hit.position * wall_width));
             v = 1.0 - fract(mix(tex.uv_min.y, tex.uv_max.y, (world_y - wall_y_bottom)));
             break;
         }

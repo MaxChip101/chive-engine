@@ -20,14 +20,14 @@ pub const Vec2 = extern struct {
         return self.x * self.x + self.y * self.y;
     }
 
-    pub fn multiply(self: *Self, scaler: f32) void {
-        self.*.x *= scaler;
-        self.*.y *= scaler;
+    pub fn multiply(self: *Self, scalar: f32) void {
+        self.*.x *= scalar;
+        self.*.y *= scalar;
     }
 
-    pub fn divide(self: *Self, scaler: f32) void {
-        self.*.x /= scaler;
-        self.*.y /= scaler;
+    pub fn divide(self: *Self, scalar: f32) void {
+        self.*.x /= scalar;
+        self.*.y /= scalar;
     }
 
     pub fn add(self: *Self, vec: Vec2) void {
@@ -90,16 +90,16 @@ pub const Vec3 = extern struct {
         return self.x * self.x + self.y * self.y + self.z * self.z;
     }
 
-    pub fn multiply(self: *Self, scaler: f32) void {
-        self.*.x *= scaler;
-        self.*.y *= scaler;
-        self.*.z *= scaler;
+    pub fn multiply(self: *Self, scalar: f32) void {
+        self.*.x *= scalar;
+        self.*.y *= scalar;
+        self.*.z *= scalar;
     }
 
-    pub fn divide(self: *Self, scaler: f32) void {
-        self.*.x /= scaler;
-        self.*.y /= scaler;
-        self.*.z /= scaler;
+    pub fn divide(self: *Self, scalar: f32) void {
+        self.*.x /= scalar;
+        self.*.y /= scalar;
+        self.*.z /= scalar;
     }
 
     pub fn add(self: *Self, vec: Vec3) void {
