@@ -17,18 +17,12 @@ struct Texture {
     vec2 size;
 };
 
-struct Wall {
-    vec3 start;
-    float height;
-    vec3 end;
+struct Surface {
+    vec3 position;
+    float rotation;
+    vec3 normal;
     uint texture_id;
-};
-
-struct Plane {
-    vec2 start;
-    vec2 end;
-    float vertical;
-    uint texture_id;
+    vec2 size;
 };
 
 struct Camera {
@@ -38,51 +32,43 @@ struct Camera {
     float projection_distance;
 };
 
-struct RaycastResult {
-    uint wall_id;
-    float distance;
-    float position;
-    float corrected_distance;
-};
-
-layout(std430, binding = 0) readonly buffer WallBuffer {
-    Wall walls[];
-};
-
-layout(std430, binding = 1) readonly buffer CameraBuffer {
+layout(std430, binding = 0) readonly buffer CameraBuffer {
     Camera camera;
+};
+
+layout(std430, binding = 1) readonly buffer TextureBuffer {
+    Texture textures[];
+};
+
+layout(std430, binding = 2) readonly buffer SurfaceBuffer {
+    Surface surfaces[];
 };
 
 uniform sampler2DArray texture_atlas;
 
 uniform int screen_width;
 uniform int screen_height;
-uniform uint max_walls;
+uniform uint max_surfaces;
 uniform uint render_scale;
-
-layout(std430, binding = 2) buffer RaycastBuffer {
-    RaycastResult result[];
-};
-
-layout(std430, binding = 3) readonly buffer TextureBuffer {
-    Texture textures[];
-};
-
-layout(std430, binding = 4) readonly buffer PlaneBuffer {
-    Plane planes[];
-};
 
 out vec4 FragColor;
 
-// do not rewrite, this method is good for dynamic map changes
+// rewrite, switching to 3d raycaster (raytracer or whatever)
+// this would fit the criteria of having to not layer stuff
+// also fix having a unified surface system
+
+// function to shoot a ray at the pixel's angle
+// view depth variable for how far a ray shoots through each wall
+
+void cast(vec3 position, vec3 direction) {}
 
 void main() {
     vec2 screen = vec2(screen_width, screen_height);
     vec2 screen_coord = gl_FragCoord.xy - screen / 2.0;
     vec2 rotated_coord = vec2(
-        screen_coord.x * cos(camera.rotation.z) - screen_coord.y * sin(camera.rotation.z),
-        screen_coord.x * sin(camera.rotation.z) + screen_coord.y * cos(camera.rotation.z)
-    ) + screen / 2.0;
+            screen_coord.x * cos(camera.rotation.z) - screen_coord.y * sin(camera.rotation.z),
+            screen_coord.x * sin(camera.rotation.z) + screen_coord.y * cos(camera.rotation.z)
+        ) + screen / 2.0;
 
     const uint x = uint(rotated_coord.x) / render_scale;
     const float height = float(screen_height);

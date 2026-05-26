@@ -75,11 +75,7 @@ pub fn main() !void {
 
     camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, settings.fov, renderer.width);
 
-    _ = try world_struct.addWall(.{ .start = .{ .x = -4, .y = 3, .z = 2 }, .end = .{ .x = 4, .y = 0, .z = 2 }, .height = 1.0, .texture_id = texture_id });
-    _ = try world_struct.addWall(.{ .start = .{ .x = -5, .y = 0, .z = -2 }, .end = .{ .x = 5, .y = 0, .z = -2 }, .height = 10.0, .texture_id = texture_id });
-    _ = try world_struct.addWall(.{ .start = .{ .x = 4, .y = 2, .z = -2 }, .end = .{ .x = 4, .y = 2, .z = 2 }, .height = 2.0, .texture_id = texture_id });
-
-    _ = try world_struct.addPlane(.{ .start = .{ .x = -2, .y = -2 }, .end = .{ .x = 2, .y = 2 }, .vertical = 0, .texture_id = 0 });
+    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 0, .z = 1 }, .rotation = 0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
 
     // const script_path = try tools.path_from_binaryZ("test.lua");
 
@@ -172,7 +168,7 @@ pub fn main() !void {
             last_mouse_x = mouse_x;
             last_mouse_y = mouse_y;
 
-            try renderer.render(&camera, world_struct);
+            renderer.render(&camera, world_struct);
         }
 
         renderer.update();

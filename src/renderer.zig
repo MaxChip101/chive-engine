@@ -44,17 +44,12 @@ pub const Renderer = struct {
     fragmentShader: gl.Shader,
     vertexShader: gl.Shader,
     shaderProgram: gl.Program,
-    computeShader: gl.Shader,
-    computeProgram: gl.Program,
     VAO: gl.VertexArray,
     VBO: gl.Buffer,
-    wallSSBO: gl.Buffer,
-    planeSSBO: gl.Buffer,
+    surfaceSSBO: gl.Buffer,
     textureSSBO: gl.Buffer,
     cameraSSBO: gl.Buffer,
-    resultsSSBO: gl.Buffer,
-    result_buffer: []physics.RayCastResult,
-    max_walls: u32,
+    max_surfaces: u32,
     render_scale: u32,
 
     texture_list: std.ArrayList(Texture),
@@ -64,14 +59,9 @@ pub const Renderer = struct {
     // replace with map
     texture_atlas_count: usize,
 
-    compute_width_loc: ?u32,
-    compute_height_loc: ?u32,
-    compute_wall_count_loc: ?u32,
-    compute_max_walls_loc: ?u32,
-    compute_render_scale_loc: ?u32,
     shader_width_loc: ?u32,
     shader_height_loc: ?u32,
-    shader_max_walls_loc: ?u32,
+    shader_max_surfaces_loc: ?u32,
     shader_render_scale_loc: ?u32,
     shader_texture_atlas_loc: ?u32,
 
@@ -81,9 +71,8 @@ pub const Renderer = struct {
 
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
-    const computeShaderSource = @embedFile("shaders/compute.glsl");
 
-    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_walls: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
+    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_surfaces: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         const glfw_init = switch (builtin.os.tag) {
             .linux => glfw.init(.{ .platform = .wayland }),
             else => glfw.init(.{}),
@@ -195,42 +184,9 @@ pub const Renderer = struct {
 
         const shader_width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
         const shader_height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
-        const shader_max_walls_loc = gl.getUniformLocation(shaderProgram, "max_walls");
+        const shader_max_surfaces_loc = gl.getUniformLocation(shaderProgram, "max_surfaces");
         const shader_render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
         const shader_texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
-
-        const computeShader = gl.createShader(.compute);
-
-        gl.shaderSource(computeShader, 1, &.{computeShaderSource});
-        gl.compileShader(computeShader);
-
-        status = gl.getShader(computeShader, .compile_status);
-        if (status == 0) {
-            const infoLog = try gl.getShaderInfoLog(computeShader, allocator);
-            std.log.err("{s}", .{infoLog});
-            defer allocator.free(infoLog);
-            return error.FailedToMakeComputeShader;
-        }
-
-        const computeProgram = gl.createProgram();
-        gl.attachShader(computeProgram, computeShader);
-        gl.linkProgram(computeProgram);
-
-        status = gl.getProgram(computeProgram, .link_status);
-        if (status == 0) {
-            const infoLog = try gl.getProgramInfoLog(computeProgram, allocator);
-            std.log.err("{s}", .{infoLog});
-            defer allocator.free(infoLog);
-            return error.FailedToMakeComputeProgram;
-        }
-
-        gl.useProgram(computeProgram);
-
-        const compute_width_loc = gl.getUniformLocation(computeProgram, "screen_width");
-        const compute_height_loc = gl.getUniformLocation(computeProgram, "screen_height");
-        const compute_wall_count_loc = gl.getUniformLocation(computeProgram, "wall_count");
-        const compute_max_walls_loc = gl.getUniformLocation(computeProgram, "max_walls");
-        const compute_render_scale_loc = gl.getUniformLocation(computeProgram, "render_scale");
 
         var vertices = [_]f32{
             -1.0, 1.0, //
@@ -245,15 +201,9 @@ pub const Renderer = struct {
         const VBO = gl.genBuffer();
         const VAO = gl.genVertexArray();
 
-        const wallSSBO = gl.genBuffer();
+        const surfaceSSBO = gl.genBuffer();
         const cameraSSBO = gl.genBuffer();
-        const resultsSSBO = gl.genBuffer();
         const textureSSBO = gl.genBuffer();
-        const planeSSBO = gl.genBuffer();
-
-        gl.bindBuffer(wallSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, objects.Wall, &[_]objects.Wall{}, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 0, wallSSBO);
 
         gl.bindBuffer(cameraSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{.{
@@ -262,22 +212,15 @@ pub const Renderer = struct {
             .rotation = .{ .x = 0, .y = 0, .z = 0 },
             .projection_distance = 0,
         }}, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 1, cameraSSBO);
-
-        const result_buffer = try allocator.alloc(physics.RayCastResult, (window_width * max_walls) / render_scale);
-        errdefer allocator.free(result_buffer);
-
-        gl.bindBuffer(resultsSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, physics.RayCastResult, result_buffer, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 2, resultsSSBO);
+        gl.bindBufferBase(.shader_storage_buffer, 0, cameraSSBO);
 
         gl.bindBuffer(textureSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, Texture, &[_]Texture{}, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 3, textureSSBO);
+        gl.bindBufferBase(.shader_storage_buffer, 1, textureSSBO);
 
-        gl.bindBuffer(planeSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, objects.Plane, &[_]objects.Plane{}, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 4, planeSSBO);
+        gl.bindBuffer(surfaceSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Surface, &[_]objects.Surface{}, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 2, surfaceSSBO);
 
         gl.bindVertexArray(VAO);
         gl.bindBuffer(VBO, .array_buffer);
@@ -318,32 +261,22 @@ pub const Renderer = struct {
             .fragmentShader = fragmentShader,
             .vertexShader = vertexShader,
             .shaderProgram = shaderProgram,
-            .computeShader = computeShader,
-            .computeProgram = computeProgram,
             .texture_atlas = texture_atlas,
             .texture_atlas_size = texture_atlas_size,
             .texture_atlas_count = 0,
             .texture_list = texture_list,
             .VAO = VAO,
             .VBO = VBO,
-            .wallSSBO = wallSSBO,
-            .planeSSBO = planeSSBO,
+            .surfaceSSBO = surfaceSSBO,
             .textureSSBO = textureSSBO,
             .cameraSSBO = cameraSSBO,
-            .resultsSSBO = resultsSSBO,
-            .result_buffer = result_buffer,
-            .max_walls = max_walls,
+            .max_surfaces = max_surfaces,
             .render_scale = render_scale,
             .shader_width_loc = shader_width_loc,
             .shader_height_loc = shader_height_loc,
-            .shader_max_walls_loc = shader_max_walls_loc,
+            .shader_max_surfaces_loc = shader_max_surfaces_loc,
             .shader_texture_atlas_loc = shader_texture_atlas_loc,
             .shader_render_scale_loc = shader_render_scale_loc,
-            .compute_width_loc = compute_width_loc,
-            .compute_height_loc = compute_height_loc,
-            .compute_max_walls_loc = compute_max_walls_loc,
-            .compute_render_scale_loc = compute_render_scale_loc,
-            .compute_wall_count_loc = compute_wall_count_loc,
         };
     }
 
@@ -351,18 +284,13 @@ pub const Renderer = struct {
         gl.deleteShader(self.vertexShader);
         gl.deleteShader(self.fragmentShader);
         gl.deleteProgram(self.shaderProgram);
-        gl.deleteShader(self.computeShader);
-        gl.deleteProgram(self.computeProgram);
         gl.deleteVertexArray(self.VAO);
         gl.deleteBuffer(self.VBO);
-        gl.deleteBuffer(self.wallSSBO);
-        gl.deleteBuffer(self.planeSSBO);
+        gl.deleteBuffer(self.surfaceSSBO);
         gl.deleteBuffer(self.textureSSBO);
         gl.deleteBuffer(self.cameraSSBO);
-        gl.deleteBuffer(self.resultsSSBO);
         gl.deleteTexture(self.texture_atlas);
         self.texture_list.deinit();
-        self.allocator.free(self.result_buffer);
         self.window.destroy();
         glfw.terminate();
     }
@@ -400,38 +328,12 @@ pub const Renderer = struct {
         return @as(u32, @intCast(pos));
     }
 
-    pub fn render_update(self: *Self, camera: *objects.Camera) !void {
-        const size = self.window.getFramebufferSize();
-        if (self.width == size.width and self.height == size.height) return;
-        self.*.width = size.width;
-        self.*.height = size.height;
-        camera.updateProjectionDistance(self.width);
-        self.*.result_buffer = try self.allocator.realloc(self.*.result_buffer, (self.width * self.max_walls) / self.render_scale);
-        @memset(self.*.result_buffer, .{
-            .distance = math.inf(f32),
-            .position = 0,
-            .wall_id = 0,
-            .corrected_distance = 0,
-        });
-
-        gl.bindBuffer(self.resultsSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, physics.RayCastResult, self.result_buffer, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 2, self.resultsSSBO);
-        gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
-    }
-
-    pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) !void {
-        const walls = world_struct.walls.items;
-        const planes = world_struct.planes.items;
+    pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) void {
+        const surfaces = world_struct.surfaces.items;
         const textures = self.texture_list.items;
 
-        try render_update(self, camera);
-
-        gl.bindBuffer(self.wallSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, objects.Wall, walls, .dynamic_draw);
-
-        gl.bindBuffer(self.planeSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, objects.Plane, planes, .dynamic_draw);
+        gl.bindBuffer(self.surfaceSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Surface, surfaces, .dynamic_draw);
 
         gl.bindBuffer(self.cameraSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{camera.*}, .dynamic_draw);
@@ -444,23 +346,11 @@ pub const Renderer = struct {
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(.{ .color = true, .stencil = false, .depth = false });
 
-        gl.useProgram(self.computeProgram);
-
-        gl.uniform1i(self.compute_width_loc, @intCast(self.width));
-        gl.uniform1i(self.compute_height_loc, @intCast(self.height));
-        gl.uniform1ui(self.compute_wall_count_loc, @intCast(walls.len));
-        gl.uniform1ui(self.compute_max_walls_loc, self.max_walls);
-        gl.uniform1ui(self.compute_render_scale_loc, self.render_scale);
-
-        const groups_x = (self.width + (max_compute_x_groups - 1)) / max_compute_x_groups;
-        gl.binding.dispatchCompute(groups_x, 1, 1);
-        gl.binding.memoryBarrier(gl.binding.SHADER_STORAGE_BARRIER_BIT);
-
         gl.useProgram(self.shaderProgram);
 
         gl.uniform1i(self.shader_width_loc, @intCast(self.width));
         gl.uniform1i(self.shader_height_loc, @intCast(self.height));
-        gl.uniform1ui(self.shader_max_walls_loc, self.max_walls);
+        gl.uniform1ui(self.shader_max_surfaces_loc, self.max_surfaces);
         gl.uniform1ui(self.shader_render_scale_loc, self.render_scale);
 
         gl.activeTexture(.texture_0);
