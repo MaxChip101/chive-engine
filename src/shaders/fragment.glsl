@@ -74,6 +74,8 @@ layout(std430, binding = 4) readonly buffer PlaneBuffer {
 
 out vec4 FragColor;
 
+// do not rewrite, this method is good for dynamic map changes
+
 void main() {
     vec2 screen = vec2(screen_width, screen_height);
     vec2 screen_coord = gl_FragCoord.xy - screen / 2.0;
