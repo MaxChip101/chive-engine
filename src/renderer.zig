@@ -277,7 +277,7 @@ pub const Renderer = struct {
 
         gl.bindBuffer(planeSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Plane, &[_]objects.Plane{}, .dynamic_draw);
-        gl.bindBufferBase(.shader_storage_buffer, 3, planeSSBO);
+        gl.bindBufferBase(.shader_storage_buffer, 4, planeSSBO);
 
         gl.bindVertexArray(VAO);
         gl.bindBuffer(VBO, .array_buffer);
