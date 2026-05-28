@@ -29,7 +29,7 @@ pub const Camera = extern struct {
         return .{
             .position = position,
             .fov = rad_fov,
-            .rotation = vectors.Vec3{ .x = math.degreesToRadians(-rotation.x), .y = math.degreesToRadians(-rotation.y), .z = math.degreesToRadians(-rotation.z) },
+            .rotation = vectors.Vec3{ .x = math.degreesToRadians(rotation.x), .y = math.degreesToRadians(rotation.y), .z = math.degreesToRadians(rotation.z) },
             .focal_length = @as(f32, @floatFromInt(width)) / (2 * math.tan(rad_fov / 2.0)),
         };
     }

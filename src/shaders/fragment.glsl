@@ -121,11 +121,19 @@ RayResult[MAX_SURFACES] ray(vec3 direction) {
 }
 
 void main() {
-    const float scale_x = float(screen_width) / float(resolution_width);
-    const float scale_y = float(screen_height) / float(resolution_height);
+    vec2 screen = vec2(screen_width, screen_height);
+    vec2 screen_coord = gl_FragCoord.xy - screen / 2.0;
+    vec2 rotated_coord = vec2(
+        screen_coord.x * cos(-camera.rotation.z) - screen_coord.y * sin(-camera.rotation.z),
+        screen_coord.x * sin(-camera.rotation.z) + screen_coord.y * cos(-camera.rotation.z)
+    ) + screen / 2.0;
 
-    const float x = (floor(gl_FragCoord.x / scale_x) + 0.5) * scale_x;
-    const float y = (floor(gl_FragCoord.y / scale_y) + 0.5) * scale_y;
+
+    const float scale_x = screen.x / float(resolution_width);
+    const float scale_y = screen.y / float(resolution_height);
+
+    const float x = (floor(rotated_coord.x / scale_x) + 0.5) * scale_x;
+    const float y = (floor(rotated_coord.y / scale_y) + 0.5) * scale_y;
 
     const vec3 direction = direction_from_pixel(x, y);
     RayResult ray_results[MAX_SURFACES] = ray(direction);
@@ -145,7 +153,7 @@ void main() {
 
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
-            uv_coord = vec2(mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x), 1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y));
+            uv_coord = vec2(1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x), 1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y));
             break;
             case TEXTURE_TYPE_TILE:
             break;
