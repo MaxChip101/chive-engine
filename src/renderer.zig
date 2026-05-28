@@ -49,7 +49,8 @@ pub const Renderer = struct {
     surfaceSSBO: gl.Buffer,
     textureSSBO: gl.Buffer,
     cameraSSBO: gl.Buffer,
-    render_scale: u32,
+    resolution_width: u32,
+    resolution_height: u32,
 
     texture_list: std.ArrayList(Texture),
 
@@ -61,7 +62,8 @@ pub const Renderer = struct {
     width_loc: ?u32,
     height_loc: ?u32,
     surface_count_loc: ?u32,
-    render_scale_loc: ?u32,
+    resolution_width_loc: ?u32,
+    resolution_height_loc: ?u32,
     texture_atlas_loc: ?u32,
 
     const Self = @This();
@@ -71,7 +73,7 @@ pub const Renderer = struct {
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
 
-    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
+    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, resolution_width: u32, resolution_height: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         const glfw_init = switch (builtin.os.tag) {
             .linux => glfw.init(.{ .platform = .wayland }),
             else => glfw.init(.{}),
@@ -184,7 +186,8 @@ pub const Renderer = struct {
         const width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
         const height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
         const surface_count_loc = gl.getUniformLocation(shaderProgram, "surface_count");
-        const render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
+        const resolution_width_loc = gl.getUniformLocation(shaderProgram, "resolution_width");
+        const resolution_height_loc = gl.getUniformLocation(shaderProgram, "resolution_height");
         const texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
 
         var vertices = [_]f32{
@@ -268,12 +271,14 @@ pub const Renderer = struct {
             .surfaceSSBO = surfaceSSBO,
             .textureSSBO = textureSSBO,
             .cameraSSBO = cameraSSBO,
-            .render_scale = render_scale,
+            .resolution_width = resolution_width,
+            .resolution_height = resolution_height,
             .width_loc = width_loc,
             .height_loc = height_loc,
             .surface_count_loc = surface_count_loc,
             .texture_atlas_loc = texture_atlas_loc,
-            .render_scale_loc = render_scale_loc,
+            .resolution_width_loc = resolution_width_loc,
+            .resolution_height_loc = resolution_height_loc,
         };
     }
 
@@ -361,7 +366,8 @@ pub const Renderer = struct {
         gl.uniform1i(self.width_loc, @intCast(self.width));
         gl.uniform1i(self.height_loc, @intCast(self.height));
         gl.uniform1ui(self.surface_count_loc, @intCast(surface_count));
-        gl.uniform1ui(self.render_scale_loc, self.render_scale);
+        gl.uniform1ui(self.resolution_width_loc, self.resolution_width);
+        gl.uniform1ui(self.resolution_height_loc, self.resolution_height);
 
         gl.activeTexture(.texture_0);
         gl.bindTexture(self.texture_atlas, .@"2d_array");

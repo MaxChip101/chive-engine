@@ -22,7 +22,8 @@ const Settings = struct {
     camera_sensitivity: f32,
     fov: f32,
     frame_rate: u32,
-    render_scale: u32,
+    resolution_width: u32,
+    resolution_height: u32,
     width: u32,
     height: u32,
     fullscreen: bool,
@@ -64,7 +65,7 @@ pub fn main() !void {
     if (settings.fullscreen)
         display_method = .FullScreen;
 
-    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
+    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.resolution_width, settings.resolution_height, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
     const atlas = try renderer.load_texture_atlas(atlas_2);
@@ -72,7 +73,7 @@ pub fn main() !void {
 
     const texture_id = try renderer.add_texture(texture);
 
-    camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, settings.fov, renderer.width);
+    camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, settings.fov, renderer.width / settings.resolution_width);
 
     _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 1.0, .z = 0.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
     _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 3 }, .normal = .{ .x = 0, .y = 0.0, .z = 1.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
@@ -97,9 +98,6 @@ pub fn main() !void {
 
     var locked = false;
     var was_escape_presed = false;
-
-    std.debug.print("Surface size: {}\n", .{@sizeOf(objects.Surface)});
-    std.debug.print("Surface align: {}\n", .{@alignOf(objects.Surface)});
 
     while (!renderer.window.shouldClose()) {
         const time_stamp = time.milliTimestamp();

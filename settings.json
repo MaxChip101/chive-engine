@@ -1,9 +1,8 @@
 {
     "walkspeed": 3,
     "camera_sensitivity": 10,
-    "fov": 90,
+    "fov": 110,
     "frame_rate": 240,
-    "max_surfaces": 32,
     "render_scale": 1,
     "width": 800,
     "height": 600,

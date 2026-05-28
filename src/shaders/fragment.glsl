@@ -56,7 +56,8 @@ uniform sampler2DArray texture_atlas;
 uniform int screen_width;
 uniform int screen_height;
 uniform uint surface_count;
-uniform uint render_scale;
+uniform uint resolution_width;
+uniform uint resolution_height;
 
 float width = float(screen_width);
 float height = float(screen_height);
@@ -120,8 +121,11 @@ RayResult[MAX_SURFACES] ray(vec3 direction) {
 }
 
 void main() {
-    const float x = gl_FragCoord.x / float(render_scale);
-    const float y = gl_FragCoord.y / float(render_scale);
+    const float scale_x = float(screen_width) / float(resolution_width);
+    const float scale_y = float(screen_height) / float(resolution_height);
+
+    const float x = (floor(gl_FragCoord.x / scale_x) + 0.5) * scale_x;
+    const float y = (floor(gl_FragCoord.y / scale_y) + 0.5) * scale_y;
 
     const vec3 direction = direction_from_pixel(x, y);
     RayResult ray_results[MAX_SURFACES] = ray(direction);
