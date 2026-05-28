@@ -75,7 +75,7 @@ pub fn main() !void {
 
     camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, settings.fov, renderer.width);
 
-    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 0, .z = 1 }, .rotation = 0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
+    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 0, .z = 1 }, .rotation = math.pi / 4.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
 
     // const script_path = try tools.path_from_binaryZ("test.lua");
 

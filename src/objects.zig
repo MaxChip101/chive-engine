@@ -10,13 +10,15 @@ pub const Surface = extern struct {
     normal: vectors.Vec3,
     texture_id: u32,
     size: vectors.Vec2,
+
+    const Self = @This();
 };
 
 pub const Camera = extern struct {
     position: vectors.Vec3,
     fov: f32,
     rotation: vectors.Vec3,
-    projection_distance: f32,
+    focal_length: f32,
     // direction??
 
     const Self = @This();
@@ -27,7 +29,7 @@ pub const Camera = extern struct {
             .position = position,
             .fov = rad_fov,
             .rotation = vectors.Vec3{ .x = math.degreesToRadians(-rotation.x), .y = math.degreesToRadians(-rotation.y), .z = math.degreesToRadians(-rotation.z) },
-            .projection_distance = @as(f32, @floatFromInt(width)) / (2 * math.tan(rad_fov / 2.0)),
+            .focal_length = @as(f32, @floatFromInt(width)) / (2 * math.tan(rad_fov / 2.0)),
         };
     }
 
@@ -45,7 +47,7 @@ pub const Camera = extern struct {
         self.*.rotation.z += math.degreesToRadians(rotation.z);
     }
 
-    pub fn updateProjectionDistance(self: *Self, width: u32) void {
-        self.*.projection_distance = @as(f32, @floatFromInt(width)) / (2 * math.tan(self.fov / 2.0));
+    pub fn updateFocalLength(self: *Self, width: u32) void {
+        self.*.focal_length = @as(f32, @floatFromInt(width)) / (2 * math.tan(self.fov / 2.0));
     }
 };

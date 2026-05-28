@@ -59,6 +59,10 @@ out vec4 FragColor;
 
 // implement the result array buffer here so that the raycasts can scale with the max wall variable
 
+vec3 rotate_vector(vec3 vector, vec3 axis, float angle) {
+    return vector * cos(angle) + cross(axis, vector) * sin(angle) + axis * dot(axis, vector) * (1.0 - cos(angle));
+}
+
 vec3 direction_from_pixel(float x, float y) {
     float direction_x = (x - width / 2.0) / camera.projection_distance;
     float direction_y = (y - height / 2.0) / camera.projection_distance;
@@ -89,9 +93,11 @@ float ray(vec3 direction) {
         vec3 reference = (abs(surface.normal.x) >= 1.0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
         vec3 right = normalize(cross(reference, surface.normal));
         vec3 up = normalize(cross(surface.normal, right));
+        vec3 rotated_right = rotate_vector(right, surface.normal, surface.rotation);
+        vec3 rotated_up = rotate_vector(up, surface.normal, surface.rotation);
         vec3 uv_vec = camera.position + dist * direction - surface.position;
-        float u = dot(uv_vec, right) / length(right);
-        float v = dot(uv_vec, up) / length(up);
+        float u = dot(uv_vec, rotated_right) / length(rotated_right);
+        float v = dot(uv_vec, rotated_up) / length(rotated_up);
         if (abs(u) > surface.size.x || abs(v) > surface.size.y) continue;
         if (dist > 0.0 && dist < nearest) nearest = dist;
     }

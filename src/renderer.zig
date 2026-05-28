@@ -212,7 +212,7 @@ pub const Renderer = struct {
             .position = .{ .x = 0, .y = 0, .z = 0 },
             .fov = 0,
             .rotation = .{ .x = 0, .y = 0, .z = 0 },
-            .projection_distance = 0,
+            .focal_length = 0,
         }}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 0, cameraSSBO);
 
@@ -337,7 +337,7 @@ pub const Renderer = struct {
         if (self.width == size.width and self.height == size.height) return;
         self.*.width = size.width;
         self.*.height = size.height;
-        camera.updateProjectionDistance(self.width);
+        camera.updateFocalLength(self.width);
     }
 
     pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) void {
