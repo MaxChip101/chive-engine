@@ -57,6 +57,8 @@ float height = float(screen_height);
 
 out vec4 FragColor;
 
+// implement the result array buffer here so that the raycasts can scale with the max wall variable
+
 vec3 direction_from_pixel(float x, float y) {
     float direction_x = (x - width / 2.0) / camera.projection_distance;
     float direction_y = (y - height / 2.0) / camera.projection_distance;
@@ -73,21 +75,32 @@ vec3 direction_from_pixel(float x, float y) {
     return normalize(forward + right * (direction_x) + up * (direction_y));
 }
 
+// dot(uv_vec, right) / length(right) = u coord
+
 float ray(vec3 direction) {
     float nearest = INF;
+    float surface_sin;
+    float surface_cos;
     for (uint i = 0; i < surface_count; i++) {
         Surface surface = surfaces[i];
         const float denominator = dot(surface.normal, direction);
-        if (abs(denominator) < 0.01) continue;
+        if (abs(denominator) < 0.0) continue;
         const float dist = dot(surface.position - camera.position, surface.normal) / denominator;
+        vec3 reference = (abs(surface.normal.x) >= 1.0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+        vec3 right = normalize(cross(reference, surface.normal));
+        vec3 up = normalize(cross(surface.normal, right));
+        vec3 uv_vec = camera.position + dist * direction - surface.position;
+        float u = dot(uv_vec, right) / length(right);
+        float v = dot(uv_vec, up) / length(up);
+        if (abs(u) > surface.size.x || abs(v) > surface.size.y) continue;
         if (dist > 0.0 && dist < nearest) nearest = dist;
     }
     return nearest;
 }
 
 void main() {
-    const float x = gl_FragCoord.x;
-    const float y = gl_FragCoord.y;
+    const float x = gl_FragCoord.x / float(render_scale);
+    const float y = gl_FragCoord.y / float(render_scale);
 
     const vec3 camera_direction = normalize(vec3(sin(camera.rotation.x) * cos(camera.rotation.y), sin(camera.rotation.y), cos(camera.rotation.x) * cos(camera.rotation.y)));
 
