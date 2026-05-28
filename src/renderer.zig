@@ -28,8 +28,8 @@ pub const Texture = struct {
     uv_max: vectors.Vec2,
     tex_type: TextureType,
     altas_id: u32,
+    flip_u: bool,
     flip_v: bool,
-    flip_h: bool,
     tint: vectors.Color,
     tex_size: vectors.Vec2,
 };
@@ -56,14 +56,15 @@ pub const Renderer = struct {
 
     texture_atlas: gl.Texture,
     texture_atlas_size: usize,
-    // replace with map
     texture_atlas_count: usize,
+    texture_atlas_index: usize,
 
-    shader_width_loc: ?u32,
-    shader_height_loc: ?u32,
-    shader_max_surfaces_loc: ?u32,
-    shader_render_scale_loc: ?u32,
-    shader_texture_atlas_loc: ?u32,
+    width_loc: ?u32,
+    height_loc: ?u32,
+    max_surfaces_loc: ?u32,
+    surface_count_loc: ?u32,
+    render_scale_loc: ?u32,
+    texture_atlas_loc: ?u32,
 
     const Self = @This();
 
@@ -182,11 +183,12 @@ pub const Renderer = struct {
         }
         gl.useProgram(shaderProgram);
 
-        const shader_width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
-        const shader_height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
-        const shader_max_surfaces_loc = gl.getUniformLocation(shaderProgram, "max_surfaces");
-        const shader_render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
-        const shader_texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
+        const width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
+        const height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
+        const max_surfaces_loc = gl.getUniformLocation(shaderProgram, "max_surfaces");
+        const surface_count_loc = gl.getUniformLocation(shaderProgram, "surface_count");
+        const render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
+        const texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
 
         var vertices = [_]f32{
             -1.0, 1.0, //
@@ -251,8 +253,6 @@ pub const Renderer = struct {
 
         const texture_list: std.ArrayList(Texture) = .init(allocator);
 
-        // work on a system for loading and unloading texture atlases
-
         return .{
             .allocator = allocator,
             .width = window_width,
@@ -263,7 +263,8 @@ pub const Renderer = struct {
             .shaderProgram = shaderProgram,
             .texture_atlas = texture_atlas,
             .texture_atlas_size = texture_atlas_size,
-            .texture_atlas_count = 0,
+            .texture_atlas_count = texture_atlas_count,
+            .texture_atlas_index = 0,
             .texture_list = texture_list,
             .VAO = VAO,
             .VBO = VBO,
@@ -272,11 +273,12 @@ pub const Renderer = struct {
             .cameraSSBO = cameraSSBO,
             .max_surfaces = max_surfaces,
             .render_scale = render_scale,
-            .shader_width_loc = shader_width_loc,
-            .shader_height_loc = shader_height_loc,
-            .shader_max_surfaces_loc = shader_max_surfaces_loc,
-            .shader_texture_atlas_loc = shader_texture_atlas_loc,
-            .shader_render_scale_loc = shader_render_scale_loc,
+            .width_loc = width_loc,
+            .height_loc = height_loc,
+            .max_surfaces_loc = max_surfaces_loc,
+            .surface_count_loc = surface_count_loc,
+            .texture_atlas_loc = texture_atlas_loc,
+            .render_scale_loc = render_scale_loc,
         };
     }
 
@@ -297,6 +299,8 @@ pub const Renderer = struct {
 
     // use maps
     pub fn load_texture_atlas(self: *Self, data: []const u8) !u32 {
+        if (self.texture_atlas_index >= self.texture_atlas_count) return error.OutOfTextureAtlasBuffers;
+        //if (data.len != self.texture_atlas_size * self.texture_atlas_size) return error.IncorrectTextureAtlasSize; fix
         const data_c = try self.allocator.dupeZ(u8, data);
         defer self.allocator.free(data_c);
         gl.activeTexture(.texture_0);
@@ -306,7 +310,7 @@ pub const Renderer = struct {
             0,
             0,
             0,
-            self.texture_atlas_count,
+            self.texture_atlas_index,
             self.texture_atlas_size,
             self.texture_atlas_size,
             1,
@@ -314,8 +318,8 @@ pub const Renderer = struct {
             .unsigned_byte,
             data_c.ptr,
         );
-        const pos = self.texture_atlas_count;
-        self.*.texture_atlas_count += 1;
+        const pos = self.texture_atlas_index;
+        self.*.texture_atlas_index += 1;
         return @as(u32, @intCast(pos));
     }
 
@@ -328,9 +332,20 @@ pub const Renderer = struct {
         return @as(u32, @intCast(pos));
     }
 
+    pub fn render_update(self: *Self, camera: *objects.Camera) void {
+        const size = self.window.getFramebufferSize();
+        if (self.width == size.width and self.height == size.height) return;
+        self.*.width = size.width;
+        self.*.height = size.height;
+        camera.updateProjectionDistance(self.width);
+    }
+
     pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) void {
         const surfaces = world_struct.surfaces.items;
+        const surface_count = surfaces.len;
         const textures = self.texture_list.items;
+
+        self.render_update(camera);
 
         gl.bindBuffer(self.surfaceSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Surface, surfaces, .dynamic_draw);
@@ -348,15 +363,15 @@ pub const Renderer = struct {
 
         gl.useProgram(self.shaderProgram);
 
-        gl.uniform1i(self.shader_width_loc, @intCast(self.width));
-        gl.uniform1i(self.shader_height_loc, @intCast(self.height));
-        gl.uniform1ui(self.shader_max_surfaces_loc, self.max_surfaces);
-        gl.uniform1ui(self.shader_render_scale_loc, self.render_scale);
+        gl.uniform1i(self.width_loc, @intCast(self.width));
+        gl.uniform1i(self.height_loc, @intCast(self.height));
+        gl.uniform1ui(self.max_surfaces_loc, self.max_surfaces);
+        gl.uniform1ui(self.surface_count_loc, @intCast(surface_count));
+        gl.uniform1ui(self.render_scale_loc, self.render_scale);
 
         gl.activeTexture(.texture_0);
         gl.bindTexture(self.texture_atlas, .@"2d_array");
-        gl.uniform1i(self.shader_texture_atlas_loc, 0);
-
+        gl.uniform1i(self.texture_atlas_loc, 0);
         gl.bindVertexArray(self.VAO);
         gl.drawArrays(.triangles, 0, 6);
 

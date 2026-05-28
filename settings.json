@@ -3,7 +3,7 @@
     "camera_sensitivity": 10,
     "fov": 90,
     "frame_rate": 240,
-    "max_walls": 32,
+    "max_surfaces": 32,
     "render_scale": 1,
     "width": 800,
     "height": 600,

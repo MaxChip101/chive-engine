@@ -22,7 +22,7 @@ const Settings = struct {
     camera_sensitivity: f32,
     fov: f32,
     frame_rate: u32,
-    max_walls: u32,
+    max_surfaces: u32,
     render_scale: u32,
     width: u32,
     height: u32,
@@ -65,11 +65,11 @@ pub fn main() !void {
     if (settings.fullscreen)
         display_method = .FullScreen;
 
-    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_walls, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
+    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_surfaces, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
     const atlas = try renderer.load_texture_atlas(atlas_2);
-    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Tile, .flip_h = false, .flip_v = false };
+    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Tile, .flip_u = false, .flip_v = false };
 
     const texture_id = try renderer.add_texture(texture);
 
@@ -124,16 +124,16 @@ pub fn main() !void {
             }
             was_escape_presed = (escape_state == .release);
             if (renderer.window.getKey(glfw.Key.w) == glfw.Action.press) {
-                velocity.add(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
+                velocity.add(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.a) == glfw.Action.press) {
-                velocity.add(.{ .x = -math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
+                velocity.add(.{ .x = -math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.s) == glfw.Action.press) {
-                velocity.subtract(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
+                velocity.subtract(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.d) == glfw.Action.press) {
-                velocity.add(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = -math.cos(camera.rotation.y) });
+                velocity.add(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = -math.sin(camera.rotation.y) });
             }
             if (renderer.window.getKey(glfw.Key.space) == glfw.Action.press) {
                 velocity.add(vectors.Vec3.up);

@@ -4,13 +4,6 @@ const math = std.math;
 const vectors = @import("vectors.zig");
 const renderer = @import("renderer.zig");
 
-pub const Wall = extern struct {
-    start: vectors.Vec3,
-    height: f32,
-    end: vectors.Vec3,
-    texture_id: u32,
-};
-
 pub const Surface = extern struct {
     position: vectors.Vec3,
     rotation: f32,
@@ -24,6 +17,7 @@ pub const Camera = extern struct {
     fov: f32,
     rotation: vectors.Vec3,
     projection_distance: f32,
+    // direction??
 
     const Self = @This();
 
@@ -42,13 +36,13 @@ pub const Camera = extern struct {
     }
 
     pub fn setRotation(self: *Self, rotation: vectors.Vec3) void {
-        self.*.rotation = vectors.Vec3{ .x = math.degreesToRadians(-rotation.x), .y = math.degreesToRadians(-rotation.y), .z = math.degreesToRadians(-rotation.z) };
+        self.*.rotation = vectors.Vec3{ .x = math.degreesToRadians(rotation.x), .y = math.degreesToRadians(rotation.y), .z = math.degreesToRadians(rotation.z) };
     }
 
     pub fn increaseRotation(self: *Self, rotation: vectors.Vec3) void {
-        self.*.rotation.x += math.degreesToRadians(-rotation.x);
-        self.*.rotation.y += math.degreesToRadians(-rotation.y);
-        self.*.rotation.z += math.degreesToRadians(-rotation.z);
+        self.*.rotation.x += math.degreesToRadians(rotation.x);
+        self.*.rotation.y += math.degreesToRadians(rotation.y);
+        self.*.rotation.z += math.degreesToRadians(rotation.z);
     }
 
     pub fn updateProjectionDistance(self: *Self, width: u32) void {

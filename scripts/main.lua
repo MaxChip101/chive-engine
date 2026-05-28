@@ -1,3 +1,7 @@
+function Init()
+
+end
+
 function Start()
 
 end
