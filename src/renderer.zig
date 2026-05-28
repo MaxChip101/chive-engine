@@ -23,7 +23,7 @@ pub const TextureType = enum(u32) {
     Tile = 1,
 };
 
-pub const Texture = struct {
+pub const Texture = extern struct {
     uv_min: vectors.Vec2,
     uv_max: vectors.Vec2,
     tex_type: TextureType,
@@ -49,7 +49,6 @@ pub const Renderer = struct {
     surfaceSSBO: gl.Buffer,
     textureSSBO: gl.Buffer,
     cameraSSBO: gl.Buffer,
-    max_surfaces: u32,
     render_scale: u32,
 
     texture_list: std.ArrayList(Texture),
@@ -61,7 +60,6 @@ pub const Renderer = struct {
 
     width_loc: ?u32,
     height_loc: ?u32,
-    max_surfaces_loc: ?u32,
     surface_count_loc: ?u32,
     render_scale_loc: ?u32,
     texture_atlas_loc: ?u32,
@@ -73,7 +71,7 @@ pub const Renderer = struct {
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
 
-    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, max_surfaces: u32, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
+    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, render_scale: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         const glfw_init = switch (builtin.os.tag) {
             .linux => glfw.init(.{ .platform = .wayland }),
             else => glfw.init(.{}),
@@ -185,7 +183,6 @@ pub const Renderer = struct {
 
         const width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
         const height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
-        const max_surfaces_loc = gl.getUniformLocation(shaderProgram, "max_surfaces");
         const surface_count_loc = gl.getUniformLocation(shaderProgram, "surface_count");
         const render_scale_loc = gl.getUniformLocation(shaderProgram, "render_scale");
         const texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
@@ -271,11 +268,9 @@ pub const Renderer = struct {
             .surfaceSSBO = surfaceSSBO,
             .textureSSBO = textureSSBO,
             .cameraSSBO = cameraSSBO,
-            .max_surfaces = max_surfaces,
             .render_scale = render_scale,
             .width_loc = width_loc,
             .height_loc = height_loc,
-            .max_surfaces_loc = max_surfaces_loc,
             .surface_count_loc = surface_count_loc,
             .texture_atlas_loc = texture_atlas_loc,
             .render_scale_loc = render_scale_loc,
@@ -365,7 +360,6 @@ pub const Renderer = struct {
 
         gl.uniform1i(self.width_loc, @intCast(self.width));
         gl.uniform1i(self.height_loc, @intCast(self.height));
-        gl.uniform1ui(self.max_surfaces_loc, self.max_surfaces);
         gl.uniform1ui(self.surface_count_loc, @intCast(surface_count));
         gl.uniform1ui(self.render_scale_loc, self.render_scale);
 

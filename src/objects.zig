@@ -10,6 +10,7 @@ pub const Surface = extern struct {
     normal: vectors.Vec3,
     texture_id: u32,
     size: vectors.Vec2,
+    _pad: [2]f32 = .{ 0, 0 },
 
     const Self = @This();
 };

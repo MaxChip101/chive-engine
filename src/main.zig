@@ -22,7 +22,6 @@ const Settings = struct {
     camera_sensitivity: f32,
     fov: f32,
     frame_rate: u32,
-    max_surfaces: u32,
     render_scale: u32,
     width: u32,
     height: u32,
@@ -65,17 +64,18 @@ pub fn main() !void {
     if (settings.fullscreen)
         display_method = .FullScreen;
 
-    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.max_surfaces, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
+    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.render_scale, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
     const atlas = try renderer.load_texture_atlas(atlas_2);
-    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Tile, .flip_u = false, .flip_v = false };
+    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Stretch, .flip_u = false, .flip_v = false };
 
     const texture_id = try renderer.add_texture(texture);
 
     camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, settings.fov, renderer.width);
 
-    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 0, .z = 1 }, .rotation = math.pi / 4.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
+    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 1.0, .z = 0.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
+    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 3 }, .normal = .{ .x = 0, .y = 0.0, .z = 1.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
 
     // const script_path = try tools.path_from_binaryZ("test.lua");
 
@@ -97,6 +97,9 @@ pub fn main() !void {
 
     var locked = false;
     var was_escape_presed = false;
+
+    std.debug.print("Surface size: {}\n", .{@sizeOf(objects.Surface)});
+    std.debug.print("Surface align: {}\n", .{@alignOf(objects.Surface)});
 
     while (!renderer.window.shouldClose()) {
         const time_stamp = time.milliTimestamp();
