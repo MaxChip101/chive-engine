@@ -10,8 +10,8 @@ const glfw = @import("glfw");
 const zigimg = @import("zigimg");
 
 const tools = @import("tools.zig");
-const renderer_class = @import("renderer.zig");
-const world_class = @import("world.zig");
+const rendering_manager = @import("renderer.zig");
+const world_manager = @import("world.zig");
 const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
 
@@ -57,35 +57,35 @@ pub fn main() !void {
 
     const fps_milli: i64 = @divTrunc(1000, settings.frame_rate);
 
-    var world_struct: world_class.World = try .init(allocator);
-    defer world_struct.deinit();
+    var world: world_manager.World = try .init(allocator);
+    defer world.deinit();
 
-    var display_method: renderer_class.DisplayMethod = .Windowed;
+    var display_method: rendering_manager.DisplayMethod = .Windowed;
 
     if (settings.fullscreen)
         display_method = .FullScreen;
 
-    var renderer: renderer_class.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.resolution_width, settings.resolution_height, settings.texture_atlas_size, settings.texture_atlas_count);
+    var renderer: rendering_manager.Renderer = try .init(allocator, "chive engine", settings.width, settings.height, display_method, settings.resolution_width, settings.resolution_height, settings.texture_atlas_size, settings.texture_atlas_count);
     defer renderer.deinit();
 
     const atlas = try renderer.load_texture_atlas(atlas_2);
-    const texture: renderer_class.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Stretch, .flip_u = false, .flip_v = false };
+    const texture: rendering_manager.Texture = .{ .altas_id = atlas, .tint = vectors.Color.white, .uv_min = .{ .x = 0, .y = 0 }, .uv_max = .{ .x = 1, .y = 1 }, .tex_size = .{ .x = 1, .y = 1 }, .tex_type = .Stretch, .flip_u = false, .flip_v = false };
 
     const texture_id = try renderer.add_texture(texture);
 
     camera = .init(vectors.Vec3{ .x = 0, .y = 1.5, .z = 0 }, vectors.Vec3{ .x = 0, .y = 0, .z = 0 }, settings.fov, renderer.width / settings.resolution_width);
 
-    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 1.0, .z = 0.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
-    _ = try world_struct.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 3 }, .normal = .{ .x = 0, .y = 0.0, .z = -1.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
+    _ = try world.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 2 }, .normal = .{ .x = 0, .y = 1.0, .z = 0.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
+    _ = try world.addSurface(.{ .position = .{ .x = 0, .y = 1, .z = 3 }, .normal = .{ .x = 0, .y = 0.0, .z = -1.0 }, .rotation = 0.0, .size = .{ .x = 1, .y = 1 }, .texture_id = texture_id });
 
-    // const script_path = try tools.path_from_binaryZ("test.lua");
+    const script_path = try tools.path_from_binaryZ("test.lua");
 
-    // var lua = try zlua.Lua.init(allocator);
-    // defer lua.deinit();
-    // lua.openLibs();
-    // lua.doFile(script_path) catch |err| {
-    //     std.debug.print("{any}", .{err});
-    // };
+    var lua = try zlua.Lua.init(allocator);
+    defer lua.deinit();
+    lua.openLibs();
+    lua.doFile(script_path) catch |err| {
+        std.debug.print("{any}", .{err});
+    };
 
     var last_time = time.milliTimestamp();
 
@@ -169,7 +169,7 @@ pub fn main() !void {
             last_mouse_x = mouse_x;
             last_mouse_y = mouse_y;
 
-            renderer.render(&camera, world_struct);
+            renderer.render(&camera, world);
         }
 
         renderer.update();

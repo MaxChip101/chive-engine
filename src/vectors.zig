@@ -56,18 +56,18 @@ pub const Vec2 = extern struct {
     }
 };
 
-pub const Color = extern struct {
-    r: f32,
-    g: f32,
-    b: f32,
-    a: f32,
+// pub const Color = extern struct {
+//     r: f32,
+//     g: f32,
+//     b: f32,
+//     a: f32,
 
-    const Self = @This();
+//     const Self = @This();
 
-    pub const zero: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 };
-    pub const black: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 };
-    pub const white: Self = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 };
-};
+//     pub const zero: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 0.0 };
+//     pub const black: Self = .{ .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 };
+//     pub const white: Self = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 };
+// };
 
 pub const Vec3 = extern struct {
     x: f32,
