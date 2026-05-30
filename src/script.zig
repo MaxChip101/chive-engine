@@ -8,8 +8,7 @@ const zlua = @import("zlua");
 
 var lua: *zlua.Lua = undefined;
 
-const vec3_stack_idx = -3;
-const vec2_stack_idx = -2;
+const push_idx = -2;
 const stack_top_idx = -1;
 
 pub fn init(allocator: mem.Allocator) !void {
@@ -17,12 +16,12 @@ pub fn init(allocator: mem.Allocator) !void {
     lua.openLibs();
 
     const main_script = try tools.path_from_binaryZ(allocator, "scripts/main.lua");
+    defer allocator.free(main_script);
 
     lua.doFile(main_script) catch |err| {
         std.debug.print("{any}", .{err});
         return err;
     };
-    allocator.free(main_script);
 }
 
 pub fn deinit() void {
@@ -34,14 +33,26 @@ pub fn start() !void {
     try lua.protectedCall(.{});
 }
 
+pub fn update(delta_time: f32) !void {
+    _ = lua.getGlobal("Update") catch unreachable;
+    lua.pushNumber(delta_time);
+    try lua.protectedCall(.{ .args = 1 });
+}
+
+pub fn tick(delta_time: f32) !void {
+    _ = lua.getGlobal("Tick") catch unreachable;
+    lua.pushNumber(delta_time);
+    try lua.protectedCall(.{ .args = 1 });
+}
+
 fn pushVec3(vector: vectors.Vec3) void {
     lua.createTable(0, 3);
     lua.pushNumber(vector.x);
-    lua.setField(vec3_stack_idx, "x");
+    lua.setField(push_idx, "x");
     lua.pushNumber(vector.y);
-    lua.setField(vec3_stack_idx, "y");
+    lua.setField(push_idx, "y");
     lua.pushNumber(vector.z);
-    lua.setField(vec3_stack_idx, "z");
+    lua.setField(push_idx, "z");
 }
 
 fn pullVec3(idx: i32) vectors.Vec3 {
@@ -60,9 +71,9 @@ fn pullVec3(idx: i32) vectors.Vec3 {
 fn pushVec2(vector: vectors.Vec2) void {
     lua.createTable(0, 2);
     lua.pushNumber(vector.x);
-    lua.setField(vec2_stack_idx, "x");
+    lua.setField(push_idx, "x");
     lua.pushNumber(vector.y);
-    lua.setField(vec2_stack_idx, "y");
+    lua.setField(push_idx, "y");
 }
 
 fn pullVec2(idx: i32) vectors.Vec2 {

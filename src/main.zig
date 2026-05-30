@@ -99,9 +99,11 @@ pub fn main() !void {
     while (!renderer.window.shouldClose()) {
         const time_stamp = time.milliTimestamp();
         const delta_time: f32 = @as(f32, @floatFromInt(time_stamp - last_time)) / 1000.0;
+        try script.tick(delta_time);
 
         if (time_stamp - last_time >= fps_milli) {
             last_time = time_stamp;
+            try script.update(delta_time);
             const mouse_x = @as(f32, @floatCast(renderer.window.getCursorPos().xpos));
             const mouse_y = @as(f32, @floatCast(renderer.window.getCursorPos().ypos));
 
