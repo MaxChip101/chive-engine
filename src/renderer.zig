@@ -7,7 +7,7 @@ const glfw = @import("glfw");
 const gl = @import("zgl");
 
 const objects = @import("objects.zig");
-const world = @import("world.zig");
+const scenes = @import("scenes.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
 
@@ -332,16 +332,16 @@ pub const Renderer = struct {
         return @as(u32, @intCast(pos));
     }
 
-    pub fn render_update(self: *Self, camera: *objects.Camera) void {
+    fn render_update(self: *Self, camera: *objects.Camera) void {
         const size = self.window.getFramebufferSize();
-        if (self.width == size.width and self.height == size.height) return;
+        if ((self.width == size.width and self.height == size.height) or camera.focal_length == 0.0) return;
         self.*.width = size.width;
         self.*.height = size.height;
-        camera.updateFocalLength(self.width);
+        camera.*.updateFocalLength(self.width);
     }
 
-    pub fn render(self: *Self, camera: *objects.Camera, world_struct: world.World) void {
-        const surfaces = world_struct.surfaces.items;
+    pub fn render_scene(self: *Self, camera: *objects.Camera, scene: scenes.Scene) void {
+        const surfaces = scene.surfaces.items;
         const surface_count = surfaces.len;
         const textures = self.texture_list.items;
 

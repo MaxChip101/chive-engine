@@ -2,16 +2,16 @@ const std = @import("std");
 const mem = std.mem;
 const fs = std.fs;
 
-pub fn path_from_binary(allocator: mem.Allocator, file: []const u8) ![]u8 {
+pub fn path_from_binary(allocator: mem.Allocator, path: []const u8) ![]u8 {
     const binary_directory = try fs.selfExeDirPathAlloc(allocator);
     defer allocator.free(binary_directory);
-    return try fs.path.join(allocator, &[_][]const u8{ binary_directory, file });
+    return try fs.path.join(allocator, &[_][]const u8{ binary_directory, path });
 }
 
-pub fn path_from_binaryZ(allocator: mem.Allocator, file: []const u8) ![:0]const u8 {
+pub fn path_from_binaryZ(allocator: mem.Allocator, path: []const u8) ![:0]const u8 {
     const binary_directory = try fs.selfExeDirPathAlloc(allocator);
     defer allocator.free(binary_directory);
-    return try fs.path.joinZ(allocator, &[_][]const u8{ binary_directory, file });
+    return try fs.path.joinZ(allocator, &[_][]const u8{ binary_directory, path });
 }
 
 pub fn read_file_from_path(allocator: mem.Allocator, path: []const u8) ![]u8 {

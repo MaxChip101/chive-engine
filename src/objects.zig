@@ -24,13 +24,13 @@ pub const Camera = extern struct {
 
     const Self = @This();
 
-    pub fn init(position: vectors.Vec3, rotation: vectors.Vec3, fov: f32, width: u32) Self {
+    pub fn init(position: vectors.Vec3, rotation: vectors.Vec3, fov: f32) Self {
         const rad_fov = math.degreesToRadians(fov);
         return .{
             .position = position,
             .fov = rad_fov,
             .rotation = vectors.Vec3{ .x = math.degreesToRadians(rotation.x), .y = math.degreesToRadians(rotation.y), .z = math.degreesToRadians(rotation.z) },
-            .focal_length = @as(f32, @floatFromInt(width)) / (2 * math.tan(rad_fov / 2.0)),
+            .focal_length = 0.0,
         };
     }
 

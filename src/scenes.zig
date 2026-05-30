@@ -2,7 +2,7 @@ const std = @import("std");
 const mem = std.mem;
 const objects = @import("objects.zig");
 
-pub const World = struct {
+pub const Scene = struct {
     surfaces: std.ArrayList(objects.Surface),
 
     const Self = @This();
