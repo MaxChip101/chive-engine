@@ -11,6 +11,7 @@ const zigimg = @import("zigimg");
 
 const tools = @import("tools.zig");
 const rendering = @import("renderer.zig");
+const script = @import("script.zig");
 const scenes = @import("scenes.zig");
 const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
@@ -36,6 +37,10 @@ pub fn main() !void {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) @panic("TEST FAIL");
     }
+
+    try script.init(allocator);
+    try script.start();
+    defer script.deinit();
 
     const atlas_path = try tools.path_from_binary(allocator, "test.png");
     defer allocator.free(atlas_path);
@@ -79,13 +84,6 @@ pub fn main() !void {
     const script_path = try tools.path_from_binaryZ(allocator, "test.lua");
     defer allocator.free(script_path);
 
-    var lua = try zlua.Lua.init(allocator);
-    defer lua.deinit();
-    lua.openLibs();
-    lua.doFile(script_path) catch |err| {
-        std.debug.print("{any}", .{err});
-    };
-
     var last_time = time.milliTimestamp();
 
     const walk_speed = settings.walkspeed;
@@ -110,7 +108,7 @@ pub fn main() !void {
             var velocity: vectors.Vec3 = .zero;
 
             if (locked) {
-                camera.increaseRotation(.{ .x = sensitivity * delta_time * -(mouse_y - last_mouse_y), .y = sensitivity * delta_time * (mouse_x - last_mouse_x), .z = 0 });
+                camera.increaseRotation(.{ .x = (sensitivity * delta_time * -(mouse_y - last_mouse_y)) / @as(f32, @floatFromInt(renderer.height)), .y = (sensitivity * delta_time * (mouse_x - last_mouse_x)) / @as(f32, @floatFromInt(renderer.width)), .z = 0 });
             }
 
             const escape_state = renderer.window.getKey(.escape);

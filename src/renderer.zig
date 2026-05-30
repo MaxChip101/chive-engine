@@ -334,10 +334,10 @@ pub const Renderer = struct {
 
     fn render_update(self: *Self, camera: *objects.Camera) void {
         const size = self.window.getFramebufferSize();
-        if ((self.width == size.width and self.height == size.height) or camera.focal_length == 0.0) return;
+        if ((self.width == size.width and self.height == size.height) and camera.focal_length != 0) return;
         self.*.width = size.width;
         self.*.height = size.height;
-        camera.*.updateFocalLength(self.width);
+        camera.updateFocalLength(self.width);
     }
 
     pub fn render_scene(self: *Self, camera: *objects.Camera, scene: scenes.Scene) void {
