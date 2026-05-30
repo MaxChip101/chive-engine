@@ -34,6 +34,8 @@ pub const Texture = extern struct {
     tex_size: vectors.Vec2,
 };
 
+// doesn't need to be a class, maybe just a static class?
+
 pub const Renderer = struct {
     width: u32,
     height: u32,

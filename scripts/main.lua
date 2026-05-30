@@ -13,11 +13,11 @@ function Start()
 end
 
 -- calls every frame
-function Update(deltaTime)
+function Update(delta)
     print("update")
 end
 
 -- calls when engine updates
-function Tick(deltaTime)
-    print("tick")
+function Tick(delta)
+    print("tick" .. delta)
 end
