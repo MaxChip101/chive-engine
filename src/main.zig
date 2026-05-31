@@ -224,35 +224,82 @@ fn setScene(lua: *zlua.Lua) i32 {
 }
 
 fn createTexture(lua: *zlua.Lua) i32 {
-    // texture
+    const atlas_id = pullUInt(lua, 1);
+    const uv_min = pullVec2(lua, 2);
+    const uv_max = pullVec2(lua, 3);
+    const texture_type = pullUInt(lua, 4);
+    const flip_u = pullBool(lua, 5);
+    const flip_v = pullBool(lua, 6);
+    const tint = pullColor(lua, 7);
+    const size = pullVec2(lua, 8);
 
-    const scene = scene_manager.Scene.init(allocator) catch {
+    var texture_type_enum: objects.TextureType = .Stretch;
+
+    switch (texture_type) {
+        0 => texture_type_enum = .Stretch,
+        1 => texture_type_enum = .Tile,
+        else => texture_type_enum = .Stretch,
+    }
+
+    const texture: objects.Texture = .{
+        .altas_id = atlas_id,
+        .uv_min = uv_min,
+        .uv_max = uv_max,
+        .tex_type = texture_type_enum,
+        .flip_u = flip_u,
+        .flip_v = flip_v,
+        .tint = tint,
+        .tex_size = size,
+    };
+
+    const texture_id = renderer.add_texture(texture) catch {
         std.log.debug("Out of Memory", .{});
         return 0;
     };
-    const scene_id = scenes.items.len;
-    scenes.append(scene) catch {
-        std.log.debug("Out of Memory", .{});
-        return 0;
-    };
 
-    lua.pushInteger(@intCast(scene_id));
+    lua.pushInteger(@intCast(texture_id));
     return 1;
 }
 
 fn loadTextureAtlas(lua: *zlua.Lua) i32 {
-    // texture
-    const scene = scene_manager.Scene.init(allocator) catch {
-        std.log.debug("Out of Memory", .{});
+    const atlas_file = pullString(lua, 1);
+    const atlas_folder_path = tools.path_from_binaryZ(allocator, "res/atlas") catch |err| {
+        std.debug.print("Error Getting Atlas Path: {any}", .{err});
         return 0;
     };
-    const scene_id = scenes.items.len;
-    scenes.append(scene) catch {
-        std.log.debug("Out of Memory", .{});
+    defer allocator.free(atlas_folder_path);
+    const atlas_path = fs.path.joinZ(allocator, &.{ atlas_folder_path, atlas_file }) catch |err| {
+        std.debug.print("Error Joining Atlas Path: {any}", .{err});
         return 0;
+    };
+    defer allocator.free(atlas_path);
+
+    var atlas_image = zigimg.Image.fromFilePath(allocator, atlas_path) catch |err| {
+        std.debug.print("Error Getting Atlas: {any}", .{err});
+        return 0;
+    };
+    defer atlas_image.deinit();
+    atlas_image.convert(.rgba32) catch |err| {
+        std.debug.print("Error Getting Atlas Bytes: {any}", .{err});
+        return 0;
+    };
+    atlas_image.flipVertically() catch |err| {
+        std.debug.print("Error Getting Atlas Bytes: {any}", .{err});
+        return 0;
+    };
+    const atlas = atlas_image.rawBytes();
+
+    const atlas_id = renderer.load_texture_atlas(atlas) catch |err| {
+        if (err == error.OutOfTextureAtlasBuffers) {
+            std.log.debug("Ran Out of Texture Atlas Storage", .{});
+            return 0;
+        } else {
+            std.log.debug("Out of Memory", .{});
+            return 0;
+        }
     };
 
-    lua.pushInteger(@intCast(scene_id));
+    lua.pushInteger(@intCast(atlas_id));
     return 1;
 }
 
@@ -362,6 +409,34 @@ fn pullVec2(lua: *zlua.Lua, idx: i32) vectors.Vec2 {
     return .{ .x = x, .y = y };
 }
 
+fn pushColor(lua: *zlua.Lua, color: vectors.Color) void {
+    lua.createTable(0, 4);
+    lua.pushNumber(color.r);
+    lua.setField(push_idx, "r");
+    lua.pushNumber(color.g);
+    lua.setField(push_idx, "g");
+    lua.pushNumber(color.b);
+    lua.setField(push_idx, "b");
+    lua.pushNumber(color.a);
+    lua.setField(push_idx, "a");
+}
+
+fn pullColor(lua: *zlua.Lua, idx: i32) vectors.Color {
+    _ = lua.getField(idx, "r");
+    const r: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
+    lua.pop(1);
+    _ = lua.getField(idx, "g");
+    const g: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
+    lua.pop(1);
+    _ = lua.getField(idx, "b");
+    const b: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
+    lua.pop(1);
+    _ = lua.getField(idx, "a");
+    const a: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
+    lua.pop(1);
+    return .{ .r = r, .g = g, .b = b, .a = a };
+}
+
 fn pullNumber(lua: *zlua.Lua, idx: i32) f32 {
     return @floatCast(lua.toNumber(idx) catch 0.0);
 }
@@ -372,6 +447,10 @@ fn pullInt(lua: *zlua.Lua, idx: i32) i32 {
 
 fn pullUInt(lua: *zlua.Lua, idx: i32) u32 {
     return @intCast(lua.toInteger(idx) catch 0);
+}
+
+fn pullBool(lua: *zlua.Lua, idx: i32) bool {
+    return lua.toBoolean(idx);
 }
 
 fn pullString(lua: *zlua.Lua, idx: i32) [:0]const u8 {

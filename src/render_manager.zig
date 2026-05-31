@@ -18,22 +18,6 @@ pub const DisplayMethod = enum(u32) {
     BorderlessWindowed = 3,
 };
 
-pub const TextureType = enum(u32) {
-    Stretch = 0,
-    Tile = 1,
-};
-
-pub const Texture = extern struct {
-    uv_min: vectors.Vec2,
-    uv_max: vectors.Vec2,
-    tex_type: TextureType,
-    altas_id: u32,
-    flip_u: bool,
-    flip_v: bool,
-    tint: vectors.Color,
-    tex_size: vectors.Vec2,
-};
-
 // doesn't need to be a class, maybe just a static class?
 
 pub const Renderer = struct {
@@ -54,7 +38,7 @@ pub const Renderer = struct {
     resolution_width: u32,
     resolution_height: u32,
 
-    texture_list: std.ArrayList(Texture),
+    texture_list: std.ArrayList(objects.Texture),
 
     texture_atlas: gl.Texture,
     texture_atlas_size: usize,
@@ -219,7 +203,7 @@ pub const Renderer = struct {
         gl.bindBufferBase(.shader_storage_buffer, 0, cameraSSBO);
 
         gl.bindBuffer(textureSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, Texture, &[_]Texture{}, .dynamic_draw);
+        gl.bufferData(.shader_storage_buffer, objects.Texture, &[_]objects.Texture{}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 1, textureSSBO);
 
         gl.bindBuffer(surfaceSSBO, .shader_storage_buffer);
@@ -253,7 +237,7 @@ pub const Renderer = struct {
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest_mipmap_linear);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
-        const texture_list: std.ArrayList(Texture) = .init(allocator);
+        const texture_list: std.ArrayList(objects.Texture) = .init(allocator);
 
         return .{
             .allocator = allocator,
@@ -328,7 +312,7 @@ pub const Renderer = struct {
     // editing atlases and unloading atlases?
 
     // add unloading
-    pub fn add_texture(self: *Self, texture: Texture) !u32 {
+    pub fn add_texture(self: *Self, texture: objects.Texture) !u32 {
         const pos = self.texture_list.items.len;
         try self.texture_list.append(texture);
         return @as(u32, @intCast(pos));
@@ -356,7 +340,7 @@ pub const Renderer = struct {
         gl.bufferData(.shader_storage_buffer, objects.Camera, &[_]objects.Camera{camera.*}, .dynamic_draw);
 
         gl.bindBuffer(self.textureSSBO, .shader_storage_buffer);
-        gl.bufferData(.shader_storage_buffer, Texture, textures, .dynamic_draw);
+        gl.bufferData(.shader_storage_buffer, objects.Texture, textures, .dynamic_draw);
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
 

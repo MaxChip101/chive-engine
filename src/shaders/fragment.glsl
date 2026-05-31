@@ -104,7 +104,8 @@ RayResult[MAX_SURFACES] ray(vec3 direction) {
             vec3 uv_vec = camera.position + dist * direction - surface.position;
             float u = dot(uv_vec, rotated_right);
             float v = dot(uv_vec, rotated_up);
-            if (abs(u) <= surface.size.x && abs(v) <= surface.size.y && dist > 0.0 && dist < nearest && last_nearest < dist) {
+            if (abs(u) <= surface.size.x && abs(v) <= surface.size.y && 
+            dist > 0.0 && dist < nearest && last_nearest < dist) {
                 nearest = dist;
                 uv = vec2(u, v);
                 surface_id = id;
@@ -153,9 +154,16 @@ void main() {
 
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
-            uv_coord = vec2(1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x), 1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y));
+            uv_coord = vec2(
+                1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / surface.size.x) * 0.5 + 0.5),
+                1.0 - mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / surface.size.y) * 0.5 + 0.5)
+            );
             break;
             case TEXTURE_TYPE_TILE:
+            uv_coord = vec2(
+                1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x),
+                1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y)
+            );
             break;
         }
 
