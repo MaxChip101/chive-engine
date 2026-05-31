@@ -18,8 +18,6 @@ pub const DisplayMethod = enum(u32) {
     BorderlessWindowed = 3,
 };
 
-// doesn't need to be a class, maybe just a static class?
-
 pub const Renderer = struct {
     width: u32,
     height: u32,

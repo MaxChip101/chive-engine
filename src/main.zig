@@ -2,9 +2,8 @@ const std = @import("std");
 const mem = std.mem;
 const fs = std.fs;
 const heap = std.heap;
-const math = std.math;
 const time = std.time;
-const json = std.json;
+const log = std.log;
 
 const zlua = @import("zlua");
 const glfw = @import("glfw");
@@ -21,9 +20,11 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "CreateScene", .func = zlua.wrap(createScene) },
     .{ .name = "SetScene", .func = zlua.wrap(setScene) },
     .{ .name = "CreateSurface", .func = zlua.wrap(createSurface) },
+    .{ .name = "UpdateSurface", .func = zlua.wrap(updateSurface) },
     .{ .name = "CreateTexture", .func = zlua.wrap(createTexture) },
     .{ .name = "LoadTextureAtlas", .func = zlua.wrap(loadTextureAtlas) },
     .{ .name = "CreateCamera", .func = zlua.wrap(createCamera) },
+    .{ .name = "UpdateCamera", .func = zlua.wrap(updateCamera) },
     .{ .name = "SetCamera", .func = zlua.wrap(setCamera) },
 };
 
@@ -32,6 +33,7 @@ const stack_top_idx = -1;
 
 var allocator: mem.Allocator = undefined;
 var renderer: render_manager.Renderer = undefined;
+var setup_called = false;
 var scenes: std.ArrayList(scene_manager.Scene) = undefined;
 var cameras: std.ArrayList(objects.Camera) = undefined;
 
@@ -53,8 +55,6 @@ pub fn main() !void {
     cameras = .init(allocator);
     defer cameras.deinit();
 
-    defer renderer.deinit();
-
     defer {
         for (scenes.items) |*scene| {
             scene.deinit();
@@ -71,20 +71,19 @@ pub fn main() !void {
     const script = try tools.path_from_binaryZ(allocator, "scripts/main.lua");
     defer allocator.free(script);
 
-    lua.doFile(script) catch |err| {
-        std.debug.print("{any}", .{err});
-        return err;
+    lua.doFile(script) catch {
+        const err_msg = lua.toString(stack_top_idx) catch "unkown error";
+        log.err("Lua Error: {s}", .{err_msg});
+        lua.pop(1);
+        return error.LuaRuntime;
     };
 
-    try start(lua);
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return;
+    }
 
-    // const atlas_path = try tools.path_from_binary(allocator, "test.png");
-    // defer allocator.free(atlas_path);
-    // var atlas_2_image = try zigimg.Image.fromFilePath(allocator, atlas_path);
-    // defer atlas_2_image.deinit();
-    // try atlas_2_image.convert(.rgba32);
-    // try atlas_2_image.flipVertically();
-    // const atlas_2 = atlas_2_image.rawBytes();
+    defer renderer.deinit();
 
     var last_time = time.milliTimestamp();
 
@@ -185,6 +184,8 @@ fn setup(lua: *zlua.Lua) i32 {
     const texture_atlas_size = pullUInt(lua, 8);
     const texture_atlas_count = pullUInt(lua, 9);
 
+    setup_called = true;
+
     var display_method_enum: render_manager.DisplayMethod = .Windowed;
 
     switch (display_method) {
@@ -196,7 +197,7 @@ fn setup(lua: *zlua.Lua) i32 {
     }
 
     renderer = render_manager.Renderer.init(allocator, title, width, height, display_method_enum, resolution_width, resolution_height, texture_atlas_size, texture_atlas_count) catch |err| {
-        std.debug.print("Error Creating Renderer: {any}", .{err});
+        log.err("Error Creating Renderer: {!}", .{err});
         return 0;
     };
     return 0;
@@ -204,12 +205,12 @@ fn setup(lua: *zlua.Lua) i32 {
 
 fn createScene(lua: *zlua.Lua) i32 {
     const scene = scene_manager.Scene.init(allocator) catch {
-        std.log.debug("Out of Memory", .{});
+        log.err("Out of Memory", .{});
         return 0;
     };
     const scene_id = scenes.items.len;
     scenes.append(scene) catch {
-        std.log.debug("Out of Memory", .{});
+        log.err("Out of Memory", .{});
         return 0;
     };
 
@@ -224,6 +225,11 @@ fn setScene(lua: *zlua.Lua) i32 {
 }
 
 fn createTexture(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
     const atlas_id = pullUInt(lua, 1);
     const uv_min = pullVec2(lua, 2);
     const uv_max = pullVec2(lua, 3);
@@ -253,7 +259,7 @@ fn createTexture(lua: *zlua.Lua) i32 {
     };
 
     const texture_id = renderer.add_texture(texture) catch {
-        std.log.debug("Out of Memory", .{});
+        log.err("Out of Memory", .{});
         return 0;
     };
 
@@ -262,39 +268,44 @@ fn createTexture(lua: *zlua.Lua) i32 {
 }
 
 fn loadTextureAtlas(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
     const atlas_file = pullString(lua, 1);
     const atlas_folder_path = tools.path_from_binaryZ(allocator, "res/atlas") catch |err| {
-        std.debug.print("Error Getting Atlas Path: {any}", .{err});
+        log.err("Error Getting Atlas Path: {!}", .{err});
         return 0;
     };
     defer allocator.free(atlas_folder_path);
     const atlas_path = fs.path.joinZ(allocator, &.{ atlas_folder_path, atlas_file }) catch |err| {
-        std.debug.print("Error Joining Atlas Path: {any}", .{err});
+        log.err("Error Joining Atlas Path: {!}", .{err});
         return 0;
     };
     defer allocator.free(atlas_path);
 
     var atlas_image = zigimg.Image.fromFilePath(allocator, atlas_path) catch |err| {
-        std.debug.print("Error Getting Atlas: {any}", .{err});
+        log.err("Error Getting Atlas: {!}", .{err});
         return 0;
     };
     defer atlas_image.deinit();
     atlas_image.convert(.rgba32) catch |err| {
-        std.debug.print("Error Getting Atlas Bytes: {any}", .{err});
+        log.err("Error Getting Atlas Bytes: {!}", .{err});
         return 0;
     };
     atlas_image.flipVertically() catch |err| {
-        std.debug.print("Error Getting Atlas Bytes: {any}", .{err});
+        log.err("Error Getting Atlas Bytes: {!}", .{err});
         return 0;
     };
     const atlas = atlas_image.rawBytes();
 
     const atlas_id = renderer.load_texture_atlas(atlas) catch |err| {
         if (err == error.OutOfTextureAtlasBuffers) {
-            std.log.debug("Ran Out of Texture Atlas Storage", .{});
+            log.err("Ran Out of Texture Atlas Storage", .{});
             return 0;
         } else {
-            std.log.debug("Out of Memory", .{});
+            log.err("Out of Memory", .{});
             return 0;
         }
     };
@@ -320,9 +331,30 @@ fn createSurface(lua: *zlua.Lua) i32 {
     };
 
     const surface_id = scenes.items[scene_id].addSurface(surface) catch {
-        std.log.debug("Out of Memory", .{});
+        log.err("Out of Memory", .{});
         return 0;
     };
+
+    lua.pushInteger(@intCast(surface_id));
+    return 1;
+}
+
+fn updateSurface(lua: *zlua.Lua) i32 {
+    const surface_id = pullUInt(lua, 1);
+    const scene_id = pullUInt(lua, 2);
+    const position = pullVec3(lua, 3);
+    const normal = pullVec3(lua, 4);
+    const rotation = pullNumber(lua, 5);
+    const size = pullVec2(lua, 6);
+    const texture_id = pullUInt(lua, 7);
+
+    const scene: *scene_manager.Scene = &scenes.items[scene_id];
+    const surface: *objects.Surface = &scene.surfaces.items[surface_id];
+    surface.*.position = position;
+    surface.*.normal = normal;
+    surface.*.rotation = rotation;
+    surface.*.size = size;
+    surface.*.texture_id = texture_id;
 
     lua.pushInteger(@intCast(surface_id));
     return 1;
@@ -337,9 +369,25 @@ fn createCamera(lua: *zlua.Lua) i32 {
 
     const camera_id = cameras.items.len;
     cameras.append(camera) catch {
-        std.debug.print("Out of Memory", .{});
+        log.err("Out of Memory", .{});
         return 1;
     };
+
+    lua.pushInteger(@intCast(camera_id));
+    return 1;
+}
+
+fn updateCamera(lua: *zlua.Lua) i32 {
+    const camera_id = pullUInt(lua, 1);
+    const position = pullVec3(lua, 2);
+    const rotation = pullVec3(lua, 3);
+    const fov = pullNumber(lua, 4);
+
+    const camera = &cameras.items[camera_id];
+
+    camera.*.position = position;
+    camera.setRotation(rotation);
+    camera.setFov(fov);
 
     lua.pushInteger(@intCast(camera_id));
     return 1;
@@ -351,21 +399,26 @@ fn setCamera(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn start(lua: *zlua.Lua) !void {
-    _ = lua.getGlobal("Start") catch unreachable;
-    try lua.protectedCall(.{});
-}
-
 fn update(lua: *zlua.Lua, delta_time: f32) !void {
     _ = lua.getGlobal("Update") catch unreachable;
     lua.pushNumber(delta_time);
-    try lua.protectedCall(.{ .args = 1 });
+    lua.protectedCall(.{ .args = 1 }) catch {
+        const err_msg = lua.toString(stack_top_idx) catch "unkown error";
+        log.err("Lua Error: {s}", .{err_msg});
+        lua.pop(1);
+        return error.LuaRuntime;
+    };
 }
 
 fn tick(lua: *zlua.Lua, delta_time: f32) !void {
     _ = lua.getGlobal("Tick") catch unreachable;
     lua.pushNumber(delta_time);
-    try lua.protectedCall(.{ .args = 1 });
+    lua.protectedCall(.{ .args = 1 }) catch {
+        const err_msg = lua.toString(stack_top_idx) catch "unkown error";
+        log.err("Lua Error: {s}", .{err_msg});
+        lua.pop(1);
+        return error.LuaRuntime;
+    };
 }
 
 fn pushVec3(lua: *zlua.Lua, vector: vectors.Vec3) void {

@@ -31,28 +31,9 @@
 ---@field CreateTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
 ---@field CreateCamera fun(position: Vec3, rotation: Vec3, fov: number): integer
 ---@field SetCamera fun(camera_id: integer)
+---@field UpdateCamera fun(camera_id: integer, position: Vec3, rotation: Vec3, fov: number): integer
 ---@field CreateSurface fun(scene_id: integer, position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
-
----@type chive
-chive = chive
-
----@type DisplayMethodEnum
-local DisplayMethod = {
-    Windowed = 0,
-    FullScreen = 1,
-    Borderless = 2,
-    BorderlessWindowed = 3
-}
-
----@type TextureTypeEnum
-local TextureType = {
-    Stretch = 0,
-    Tile = 1,
-}
-
---- Called once at startup. Must call chive.Setup first.
-function Start()
-end
+---@field UpdateSurface fun(surface_id: integer, scene_id: integer, position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
 
 --- Called every frame.
 ---@param delta number milliseconds since last frame
