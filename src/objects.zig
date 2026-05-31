@@ -2,7 +2,6 @@ const std = @import("std");
 const math = std.math;
 
 const vectors = @import("vectors.zig");
-const renderer = @import("renderer.zig");
 
 pub const Surface = extern struct {
     position: vectors.Vec3,

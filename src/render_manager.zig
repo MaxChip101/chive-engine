@@ -7,15 +7,15 @@ const glfw = @import("glfw");
 const gl = @import("zgl");
 
 const objects = @import("objects.zig");
-const scenes = @import("scenes.zig");
+const scene_manager = @import("scene_manager.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
 
-pub const DisplayMethod = enum {
-    Windowed,
-    FullScreen,
-    Borderless,
-    BorderlessWindowed,
+pub const DisplayMethod = enum(u32) {
+    Windowed = 0,
+    FullScreen = 1,
+    Borderless = 2,
+    BorderlessWindowed = 3,
 };
 
 pub const TextureType = enum(u32) {
@@ -75,7 +75,7 @@ pub const Renderer = struct {
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
 
-    pub fn init(allocator: mem.Allocator, name: []const u8, width: u32, height: u32, display_method: DisplayMethod, resolution_width: u32, resolution_height: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
+    pub fn init(allocator: mem.Allocator, title: [:0]const u8, width: u32, height: u32, display_method: DisplayMethod, resolution_width: u32, resolution_height: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         const glfw_init = switch (builtin.os.tag) {
             .linux => glfw.init(.{ .platform = .wayland }),
             else => glfw.init(.{}),
@@ -85,8 +85,8 @@ pub const Renderer = struct {
             return error.GLFWInitFailed;
         }
 
-        const name_c = try allocator.dupeZ(u8, name);
-        defer allocator.free(name_c);
+        //const title_c = try allocator.dupeZ(u8, title);
+        //defer allocator.free(title_c);
 
         var hints: glfw.Window.Hints = .{
             .opengl_profile = .opengl_core_profile,
@@ -123,7 +123,7 @@ pub const Renderer = struct {
             monitor = null;
         }
 
-        const window = glfw.Window.create(window_width, window_height, name_c, monitor, null, hints) orelse {
+        const window = glfw.Window.create(window_width, window_height, title, monitor, null, hints) orelse {
             return error.GLFWWindowCreateFailed;
         };
 
@@ -342,7 +342,7 @@ pub const Renderer = struct {
         camera.updateFocalLength(self.width);
     }
 
-    pub fn render_scene(self: *Self, camera: *objects.Camera, scene: scenes.Scene) void {
+    pub fn render_scene(self: *Self, camera: *objects.Camera, scene: scene_manager.Scene) void {
         const surfaces = scene.surfaces.items;
         const surface_count = surfaces.len;
         const textures = self.texture_list.items;

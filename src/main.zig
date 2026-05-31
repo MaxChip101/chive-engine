@@ -1,4 +1,5 @@
 const std = @import("std");
+const mem = std.mem;
 const fs = std.fs;
 const heap = std.heap;
 const math = std.math;
@@ -10,35 +11,72 @@ const glfw = @import("glfw");
 const zigimg = @import("zigimg");
 
 const tools = @import("tools.zig");
-const render = @import("render.zig");
-const scripting = @import("scripting.zig");
-const scenes = @import("scenes.zig");
+const render_manager = @import("render_manager.zig");
+const scene_manager = @import("scene_manager.zig");
 const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
 
 const chive_funcs = [_]zlua.FnReg{
-    .{ .name = "InitChive", .func = zlua.wrap(initChive) },
+    .{ .name = "Setup", .func = zlua.wrap(setup) },
     .{ .name = "CreateScene", .func = zlua.wrap(createScene) },
+    .{ .name = "SetScene", .func = zlua.wrap(setScene) },
     .{ .name = "CreateSurface", .func = zlua.wrap(createSurface) },
     .{ .name = "CreateTexture", .func = zlua.wrap(createTexture) },
     .{ .name = "LoadTextureAtlas", .func = zlua.wrap(loadTextureAtlas) },
     .{ .name = "CreateCamera", .func = zlua.wrap(createCamera) },
+    .{ .name = "SetCamera", .func = zlua.wrap(setCamera) },
 };
 
 const push_idx = -2;
 const stack_top_idx = -1;
 
+var allocator: mem.Allocator = undefined;
+var renderer: render_manager.Renderer = undefined;
+var scenes: std.ArrayList(scene_manager.Scene) = undefined;
+var cameras: std.ArrayList(objects.Camera) = undefined;
+
+var fps: i32 = 1;
+var fps_milli: i32 = 1;
+var current_scene: u32 = 0;
+var current_camera: u32 = 0;
+
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    allocator = gpa.allocator();
     defer {
         const deinit_status = gpa.deinit();
         if (deinit_status == .leak) @panic("TEST FAIL");
     }
 
-    const script: scripting.ScriptManager = try .init(allocator);
-    try script.start();
-    defer script.deinit();
+    scenes = .init(allocator);
+    defer scenes.deinit();
+    cameras = .init(allocator);
+    defer cameras.deinit();
+
+    defer renderer.deinit();
+
+    defer {
+        for (scenes.items) |*scene| {
+            scene.deinit();
+        }
+    }
+
+    const lua = try zlua.Lua.init(allocator);
+    defer lua.deinit();
+    lua.openLibs();
+
+    lua.newLib(&chive_funcs);
+    lua.setGlobal("chive");
+
+    const script = try tools.path_from_binaryZ(allocator, "scripts/main.lua");
+    defer allocator.free(script);
+
+    lua.doFile(script) catch |err| {
+        std.debug.print("{any}", .{err});
+        return err;
+    };
+
+    try start(lua);
 
     // const atlas_path = try tools.path_from_binary(allocator, "test.png");
     // defer allocator.free(atlas_path);
@@ -47,8 +85,6 @@ pub fn main() !void {
     // try atlas_2_image.convert(.rgba32);
     // try atlas_2_image.flipVertically();
     // const atlas_2 = atlas_2_image.rawBytes();
-
-    //const fps_milli: i64 = @divTrunc(1000, settings.frame_rate);
 
     var last_time = time.milliTimestamp();
 
@@ -61,134 +97,172 @@ pub fn main() !void {
     while (!renderer.window.shouldClose()) {
         const time_stamp = time.milliTimestamp();
         const delta_time: f32 = @as(f32, @floatFromInt(time_stamp - last_time)) / 1000.0;
-        try script.tick(delta_time);
+        try tick(lua, delta_time);
 
         if (time_stamp - last_time >= fps_milli) {
             last_time = time_stamp;
-            try script.update(delta_time);
-            // const mouse_x = @as(f32, @floatCast(renderer.window.getCursorPos().xpos));
-            // const mouse_y = @as(f32, @floatCast(renderer.window.getCursorPos().ypos));
-
-            // var velocity: vectors.Vec3 = .zero;
-
-            // if (locked) {
-            //     camera.increaseRotation(.{ .x = (sensitivity * delta_time * -(mouse_y - last_mouse_y)) / @as(f32, @floatFromInt(renderer.height)), .y = (sensitivity * delta_time * (mouse_x - last_mouse_x)) / @as(f32, @floatFromInt(renderer.width)), .z = 0 });
-            // }
-
-            // const escape_state = renderer.window.getKey(.escape);
-            // if (escape_state == glfw.Action.release and !was_escape_presed) {
-            //     locked = !locked;
-            //     if (locked) {
-            //         renderer.window.setInputModeCursor(.disabled);
-            //     } else {
-            //         renderer.window.setInputModeCursor(.normal);
-            //     }
-            // }
-            //         was_escape_presed = (escape_state == .release);
-            //         if (renderer.window.getKey(glfw.Key.w) == glfw.Action.press) {
-            //             velocity.add(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.a) == glfw.Action.press) {
-            //             velocity.add(.{ .x = -math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.s) == glfw.Action.press) {
-            //             velocity.subtract(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.d) == glfw.Action.press) {
-            //             velocity.add(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = -math.sin(camera.rotation.y) });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.space) == glfw.Action.press) {
-            //             velocity.add(vectors.Vec3.up);
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.left_shift) == glfw.Action.press) {
-            //             velocity.subtract(vectors.Vec3.up);
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.left) == glfw.Action.press) {
-            //             camera.increaseRotation(.{ .x = 0, .y = -sensitivity * delta_time, .z = 0 });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.up) == glfw.Action.press) {
-            //             camera.increaseRotation(.{ .x = sensitivity * delta_time, .y = 0, .z = 0 });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.down) == glfw.Action.press) {
-            //             camera.increaseRotation(.{ .x = -sensitivity * delta_time, .y = 0, .z = 0 });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.right) == glfw.Action.press) {
-            //             camera.increaseRotation(.{ .x = 0, .y = sensitivity * delta_time, .z = 0 });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.q) == glfw.Action.press) {
-            //             camera.increaseRotation(.{ .x = 0, .y = 0, .z = -sensitivity * delta_time });
-            //         }
-            //         if (renderer.window.getKey(glfw.Key.e) == glfw.Action.press) {
-            //             camera.increaseRotation(.{ .x = 0, .y = 0, .z = sensitivity * delta_time });
-            //         }
-
-            //         var unit = velocity.unit();
-            //         unit.multiply(delta_time * walk_speed);
-
-            //         camera.position.add(unit);
-
-            //         last_mouse_x = mouse_x;
-            //         last_mouse_y = mouse_y;
-
-            //         renderer.render_scene(&camera, scene);
+            renderer.render_scene(&cameras.items[current_camera], scenes.items[current_scene]);
+            try update(lua, delta_time);
         }
+        renderer.update();
+        // const mouse_x = @as(f32, @floatCast(renderer.window.getCursorPos().xpos));
+        // const mouse_y = @as(f32, @floatCast(renderer.window.getCursorPos().ypos));
 
-        //     renderer.update();
+        // var velocity: vectors.Vec3 = .zero;
+
+        // if (locked) {
+        //     camera.increaseRotation(.{ .x = (sensitivity * delta_time * -(mouse_y - last_mouse_y)) / @as(f32, @floatFromInt(renderer.height)), .y = (sensitivity * delta_time * (mouse_x - last_mouse_x)) / @as(f32, @floatFromInt(renderer.width)), .z = 0 });
+        // }
+
+        // const escape_state = renderer.window.getKey(.escape);
+        // if (escape_state == glfw.Action.release and !was_escape_presed) {
+        //     locked = !locked;
+        //     if (locked) {
+        //         renderer.window.setInputModeCursor(.disabled);
+        //     } else {
+        //         renderer.window.setInputModeCursor(.normal);
+        //     }
+        // }
+        //         was_escape_presed = (escape_state == .release);
+        //         if (renderer.window.getKey(glfw.Key.w) == glfw.Action.press) {
+        //             velocity.add(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.a) == glfw.Action.press) {
+        //             velocity.add(.{ .x = -math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.s) == glfw.Action.press) {
+        //             velocity.subtract(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.d) == glfw.Action.press) {
+        //             velocity.add(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = -math.sin(camera.rotation.y) });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.space) == glfw.Action.press) {
+        //             velocity.add(vectors.Vec3.up);
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.left_shift) == glfw.Action.press) {
+        //             velocity.subtract(vectors.Vec3.up);
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.left) == glfw.Action.press) {
+        //             camera.increaseRotation(.{ .x = 0, .y = -sensitivity * delta_time, .z = 0 });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.up) == glfw.Action.press) {
+        //             camera.increaseRotation(.{ .x = sensitivity * delta_time, .y = 0, .z = 0 });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.down) == glfw.Action.press) {
+        //             camera.increaseRotation(.{ .x = -sensitivity * delta_time, .y = 0, .z = 0 });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.right) == glfw.Action.press) {
+        //             camera.increaseRotation(.{ .x = 0, .y = sensitivity * delta_time, .z = 0 });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.q) == glfw.Action.press) {
+        //             camera.increaseRotation(.{ .x = 0, .y = 0, .z = -sensitivity * delta_time });
+        //         }
+        //         if (renderer.window.getKey(glfw.Key.e) == glfw.Action.press) {
+        //             camera.increaseRotation(.{ .x = 0, .y = 0, .z = sensitivity * delta_time });
+        //         }
+
+        //         var unit = velocity.unit();
+        //         unit.multiply(delta_time * walk_speed);
+
+        //         camera.position.add(unit);
+
+        //         last_mouse_x = mouse_x;
+        //         last_mouse_y = mouse_y;
+
+        //         renderer.render_scene(&camera, scene);
     }
 }
 
-fn createScene() i32 {
-    const scene = scenes.Scene.init(allocator);
-    const scene_id = self.scene_list.items.len;
-    self.scene_list.append(scene) catch |err| {
-        if (err == error.OutOfMemory) {
-            std.log.debug("Out of Memory", .{});
-            return;
-        }
+fn setup(lua: *zlua.Lua) i32 {
+    const title = pullString(lua, 1);
+    fps = pullInt(lua, 2);
+    fps_milli = @divTrunc(1000, fps);
+    const width = pullUInt(lua, 3);
+    const height = pullUInt(lua, 4);
+    const display_method = pullUInt(lua, 5);
+    const resolution_width = pullUInt(lua, 6);
+    const resolution_height = pullUInt(lua, 7);
+    const texture_atlas_size = pullUInt(lua, 8);
+    const texture_atlas_count = pullUInt(lua, 9);
+
+    var display_method_enum: render_manager.DisplayMethod = .Windowed;
+
+    switch (display_method) {
+        0 => display_method_enum = .Windowed,
+        1 => display_method_enum = .FullScreen,
+        2 => display_method_enum = .Borderless,
+        3 => display_method_enum = .BorderlessWindowed,
+        else => display_method_enum = .Windowed,
+    }
+
+    renderer = render_manager.Renderer.init(allocator, title, width, height, display_method_enum, resolution_width, resolution_height, texture_atlas_size, texture_atlas_count) catch |err| {
+        std.debug.print("Error Creating Renderer: {any}", .{err});
+        return 0;
+    };
+    return 0;
+}
+
+fn createScene(lua: *zlua.Lua) i32 {
+    const scene = scene_manager.Scene.init(allocator) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
+    };
+    const scene_id = scenes.items.len;
+    scenes.append(scene) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
     };
 
-    lua.pushInteger(scene_id);
+    lua.pushInteger(@intCast(scene_id));
     return 1;
 }
 
-fn createTexture() i32 {
+fn setScene(lua: *zlua.Lua) i32 {
+    const scene_id = pullUInt(lua, 1);
+    current_scene = scene_id;
+    return 0;
+}
+
+fn createTexture(lua: *zlua.Lua) i32 {
     // texture
 
-    const scene = scenes.Scene.init(allocator);
-    const scene_id = self.scene_list.items.len;
-    self.scene_list.append(scene) catch |err| {
-        if (err == error.OutOfMemory) {
-            std.log.debug("Out of Memory", .{});
-            return 1;
-        }
+    const scene = scene_manager.Scene.init(allocator) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
+    };
+    const scene_id = scenes.items.len;
+    scenes.append(scene) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
     };
 
-    lua.pushInteger(scene_id);
+    lua.pushInteger(@intCast(scene_id));
     return 1;
 }
 
-fn loadTextureAtlas() i32 {
+fn loadTextureAtlas(lua: *zlua.Lua) i32 {
     // texture
-    const scene = scenes.Scene.init(allocator);
-    const scene_id = self.scene_list.items.len;
-    self.scene_list.append(scene) catch |err| {
-        if (err == error.OutOfMemory) {
-            std.log.debug("Out of Memory", .{});
-            return 1;
-        }
+    const scene = scene_manager.Scene.init(allocator) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
+    };
+    const scene_id = scenes.items.len;
+    scenes.append(scene) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
     };
 
-    lua.pushInteger(scene_id);
+    lua.pushInteger(@intCast(scene_id));
     return 1;
 }
 
-fn createSurface() i32 {
-    const scene_id: u32 = pullInt(1);
-    const position = pullVec3(2);
-    const normal = pullVec3(3);
-    const rotation = pullNumber(4);
-    const size = pullVec2(5);
-    const texture_id: u32 = pullInt(6);
+fn createSurface(lua: *zlua.Lua) i32 {
+    const scene_id = pullUInt(lua, 1);
+    const position = pullVec3(lua, 2);
+    const normal = pullVec3(lua, 3);
+    const rotation = pullNumber(lua, 4);
+    const size = pullVec2(lua, 5);
+    const texture_id = pullUInt(lua, 6);
 
     const surface: objects.Surface = .{
         .position = position,
@@ -198,52 +272,56 @@ fn createSurface() i32 {
         .texture_id = texture_id,
     };
 
-    const surface_id = scene_list.items[scene_id].addSurface(surface) catch |err| {
-        if (err == error.OutOfMemory) {
-            std.debug.print("Out of Memory", .{});
-            return 1;
-        }
+    const surface_id = scenes.items[scene_id].addSurface(surface) catch {
+        std.log.debug("Out of Memory", .{});
+        return 0;
     };
 
-    lua.pushInteger(surface_id);
+    lua.pushInteger(@intCast(surface_id));
     return 1;
 }
 
-fn createCamera(self: Self) i32 {
-    const position = pullVec3(1);
-    const rotation = pullVec3(2);
-    const fov = pullNumber(3);
+fn createCamera(lua: *zlua.Lua) i32 {
+    const position = pullVec3(lua, 1);
+    const rotation = pullVec3(lua, 2);
+    const fov = pullNumber(lua, 3);
 
     const camera = objects.Camera.init(position, rotation, fov);
 
-    const camera_id = self.cameras.items.len;
-    self.cameras.append(camera) catch {
+    const camera_id = cameras.items.len;
+    cameras.append(camera) catch {
         std.debug.print("Out of Memory", .{});
         return 1;
     };
 
-    lua.pushInteger(camera_id);
+    lua.pushInteger(@intCast(camera_id));
     return 1;
 }
 
-fn start() !void {
+fn setCamera(lua: *zlua.Lua) i32 {
+    const camera_id = pullUInt(lua, 1);
+    current_camera = camera_id;
+    return 0;
+}
+
+fn start(lua: *zlua.Lua) !void {
     _ = lua.getGlobal("Start") catch unreachable;
     try lua.protectedCall(.{});
 }
 
-fn update(delta_time: f32) !void {
+fn update(lua: *zlua.Lua, delta_time: f32) !void {
     _ = lua.getGlobal("Update") catch unreachable;
     lua.pushNumber(delta_time);
     try lua.protectedCall(.{ .args = 1 });
 }
 
-fn tick(delta_time: f32) !void {
+fn tick(lua: *zlua.Lua, delta_time: f32) !void {
     _ = lua.getGlobal("Tick") catch unreachable;
     lua.pushNumber(delta_time);
     try lua.protectedCall(.{ .args = 1 });
 }
 
-fn pushVec3(vector: vectors.Vec3) void {
+fn pushVec3(lua: *zlua.Lua, vector: vectors.Vec3) void {
     lua.createTable(0, 3);
     lua.pushNumber(vector.x);
     lua.setField(push_idx, "x");
@@ -253,20 +331,20 @@ fn pushVec3(vector: vectors.Vec3) void {
     lua.setField(push_idx, "z");
 }
 
-fn pullVec3(idx: i32) vectors.Vec3 {
-    lua.getField(idx, "x");
+fn pullVec3(lua: *zlua.Lua, idx: i32) vectors.Vec3 {
+    _ = lua.getField(idx, "x");
     const x: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
     lua.pop(1);
-    lua.getField(idx, "y");
+    _ = lua.getField(idx, "y");
     const y: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
     lua.pop(1);
-    lua.getField(idx, "z");
+    _ = lua.getField(idx, "z");
     const z: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
     lua.pop(1);
     return .{ .x = x, .y = y, .z = z };
 }
 
-fn pushVec2(vector: vectors.Vec2) void {
+fn pushVec2(lua: *zlua.Lua, vector: vectors.Vec2) void {
     lua.createTable(0, 2);
     lua.pushNumber(vector.x);
     lua.setField(push_idx, "x");
@@ -274,24 +352,28 @@ fn pushVec2(vector: vectors.Vec2) void {
     lua.setField(push_idx, "y");
 }
 
-fn pullVec2(idx: i32) vectors.Vec2 {
-    lua.getField(idx, "x");
+fn pullVec2(lua: *zlua.Lua, idx: i32) vectors.Vec2 {
+    _ = lua.getField(idx, "x");
     const x: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
     lua.pop(1);
-    lua.getField(idx, "y");
+    _ = lua.getField(idx, "y");
     const y: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
     lua.pop(1);
     return .{ .x = x, .y = y };
 }
 
-fn pullNumber(idx: i32) f32 {
+fn pullNumber(lua: *zlua.Lua, idx: i32) f32 {
     return @floatCast(lua.toNumber(idx) catch 0.0);
 }
 
-fn pullInt(idx: i32) u32 {
+fn pullInt(lua: *zlua.Lua, idx: i32) i32 {
     return @intCast(lua.toInteger(idx) catch 0);
 }
 
-fn pullString(idx: i32) [:0]const u8 {
-    return lua.toString(idx) catch 0;
+fn pullUInt(lua: *zlua.Lua, idx: i32) u32 {
+    return @intCast(lua.toInteger(idx) catch 0);
+}
+
+fn pullString(lua: *zlua.Lua, idx: i32) [:0]const u8 {
+    return lua.toString(idx) catch "";
 }
