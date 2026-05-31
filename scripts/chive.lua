@@ -35,6 +35,9 @@
 ---@field CreateSurface fun(scene_id: integer, position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
 ---@field UpdateSurface fun(surface_id: integer, scene_id: integer, position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
 
+---@type chive
+chive = chive
+
 --- Called every frame.
 ---@param delta number milliseconds since last frame
 function Update(delta)
