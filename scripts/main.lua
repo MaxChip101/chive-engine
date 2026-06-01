@@ -26,19 +26,19 @@ local rot = 0
 
 chive.Setup(title, fps, width, height, display_method, resolution_width, resolution_height, texture_atlas_size, texture_atlas_count)
 local scene_id = chive.CreateScene()
-chive.SetScene(scene_id)
+chive.SetCurrentScene(scene_id)
 local atlas_id = chive.LoadTextureAtlas("test.png")
 local texture_id = chive.CreateTexture(atlas_id, {x=0, y=0}, {x=1, y=1}, TextureType.Stretch, false, false, {r=1, g=1, b=1, a=1}, {x=1, y=1})
 local camera_id = chive.CreateCamera({ x=0, y=0, z=pos_z }, { x=0, y=0, z=0 }, 110)
-chive.SetCamera(camera_id)
-local surface_id = chive.CreateSurface(scene_id, {x=0, y=0, z=2}, {x=0, y=0, z=-1}, rot, {x=2, y=2}, texture_id)
+chive.SetCurrentCamera(camera_id)
+local surface_id = chive.CreateSurface({x=0, y=0, z=2}, {x=0, y=0, z=-1}, rot, {x=2, y=2}, texture_id)
 
 
 function Update(delta)
     pos_z = pos_z - (0.1 * delta)
     rot = rot + (1 * delta)
-    chive.UpdateCamera(camera_id, { x=0, y=0, z=pos_z }, { x=0, y=0, z=0 }, 110)
-    chive.UpdateSurface(surface_id, scene_id, {x=0, y=0, z=2}, {x=0, y=0, z=-1}, rot, {x=2, y=2}, texture_id)
+    chive.SetCameraPosition(camera_id, { x=0, y=0, z=pos_z })
+    chive.SetSurfaceRotation(surface_id, rot)
 end
 
 function Tick(delta)
