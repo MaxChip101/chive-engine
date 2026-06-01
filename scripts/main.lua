@@ -7,7 +7,7 @@ local texture_atlas_size = 1024
 local texture_atlas_count = 1
 
 
-local walkspeed = 0.1
+local walkspeed = 3
 local sensitivity = 600
 local cam_pos = { x = 0, y = 0, z = 0 }
 local cam_rot = { x = 0, y = 0, z = 0 }
@@ -27,15 +27,13 @@ local surface_id = chive.createSurface({ x = 0, y = 0, z = 2 }, { x = 0, y = 0, 
     texture_id)
 
 
-function update(delta)
-    size = chive.getWindowSize()
-end
-
 local locked = false
 local escape_pressed = false
 local last_mouse_pos = chive.getMousePos()
 
-function tick(delta)
+function update(delta)
+    size = chive.getWindowSize()
+
     local mouse_pos = chive.getMousePos()
     local mouse_diff = { x = mouse_pos.x, y = mouse_pos.y }
     vec2.subtract(mouse_diff, last_mouse_pos)
@@ -85,4 +83,8 @@ function tick(delta)
     vec3.add(cam_pos, unit)
     chive.setCameraPosition(camera_id, cam_pos)
     chive.setCameraRadRotation(camera_id, cam_rot)
+end
+
+function tick(delta)
+
 end
