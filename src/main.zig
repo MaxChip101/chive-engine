@@ -16,27 +16,57 @@ const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
 
 const chive_funcs = [_]zlua.FnReg{
-    .{ .name = "Setup", .func = zlua.wrap(setup) },
-    .{ .name = "CreateScene", .func = zlua.wrap(createScene) },
-    .{ .name = "SetCurrentScene", .func = zlua.wrap(setCurrentScene) },
-    .{ .name = "CreateSurface", .func = zlua.wrap(createSurface) },
-    .{ .name = "SetSurfacePosition", .func = zlua.wrap(setSurfacePosition) },
-    .{ .name = "SetSurfaceNormal", .func = zlua.wrap(setSurfaceNormal) },
-    .{ .name = "SetSurfaceRotation", .func = zlua.wrap(setSurfaceRotation) },
-    .{ .name = "SetSurfaceSize", .func = zlua.wrap(setSurfaceSize) },
-    .{ .name = "SetSurfaceTextureID", .func = zlua.wrap(setSurfaceTextureID) },
-    .{ .name = "CreateTexture", .func = zlua.wrap(createTexture) },
-    .{ .name = "LoadTextureAtlas", .func = zlua.wrap(loadTextureAtlas) },
-    .{ .name = "CreateCamera", .func = zlua.wrap(createCamera) },
-    .{ .name = "SetCameraPosition", .func = zlua.wrap(setCameraPosition) },
-    .{ .name = "SetCameraRotation", .func = zlua.wrap(setCameraRotation) },
-    .{ .name = "SetCameraFov", .func = zlua.wrap(setCameraFov) },
-    .{ .name = "SetCurrentCamera", .func = zlua.wrap(setCurrentCamera) },
-    .{ .name = "SetMouseState", .func = zlua.wrap(setMouseState) },
-    .{ .name = "GetMousePos", .func = zlua.wrap(getMousePos) },
-    .{ .name = "GetKeyDown", .func = zlua.wrap(getKeyDown) },
-    .{ .name = "GetKeyUp", .func = zlua.wrap(getKeyUp) },
-    .{ .name = "GetKeyRepeat", .func = zlua.wrap(getKeyRepeat) },
+    .{ .name = "setup", .func = zlua.wrap(setup) },
+    .{ .name = "setFps", .func = zlua.wrap(setFps) },
+    .{ .name = "setMousePos", .func = zlua.wrap(setMousePos) },
+    .{ .name = "setWindowSize", .func = zlua.wrap(setWindowSize) },
+    .{ .name = "getWindowSize", .func = zlua.wrap(getWindowSize) },
+    .{ .name = "setTitle", .func = zlua.wrap(setTitle) },
+    .{ .name = "createScene", .func = zlua.wrap(createScene) },
+    .{ .name = "setCurrentScene", .func = zlua.wrap(setCurrentScene) },
+    .{ .name = "createSurface", .func = zlua.wrap(createSurface) },
+    .{ .name = "setSurfacePosition", .func = zlua.wrap(setSurfacePosition) },
+    .{ .name = "setSurfaceNormal", .func = zlua.wrap(setSurfaceNormal) },
+    .{ .name = "setSurfaceRotation", .func = zlua.wrap(setSurfaceRotation) },
+    .{ .name = "setSurfaceSize", .func = zlua.wrap(setSurfaceSize) },
+    .{ .name = "setSurfaceTextureID", .func = zlua.wrap(setSurfaceTextureID) },
+    .{ .name = "createTexture", .func = zlua.wrap(createTexture) },
+    .{ .name = "loadTextureAtlas", .func = zlua.wrap(loadTextureAtlas) },
+    .{ .name = "createCamera", .func = zlua.wrap(createCamera) },
+    .{ .name = "setCameraPosition", .func = zlua.wrap(setCameraPosition) },
+    .{ .name = "setCameraRotation", .func = zlua.wrap(setCameraRotation) },
+    .{ .name = "setCameraRadRotation", .func = zlua.wrap(setCameraRadRotation) },
+    .{ .name = "setCameraFov", .func = zlua.wrap(setCameraFov) },
+    .{ .name = "setCurrentCamera", .func = zlua.wrap(setCurrentCamera) },
+    .{ .name = "setMouseState", .func = zlua.wrap(setMouseState) },
+    .{ .name = "getMousePos", .func = zlua.wrap(getMousePos) },
+    .{ .name = "getKeyDown", .func = zlua.wrap(getKeyDown) },
+    .{ .name = "getKeyUp", .func = zlua.wrap(getKeyUp) },
+    .{ .name = "getKeyRepeat", .func = zlua.wrap(getKeyRepeat) },
+};
+
+const vec3_funcs = [_]zlua.FnReg{
+    .{ .name = "add", .func = zlua.wrap(vec3Add) },
+    .{ .name = "subtract", .func = zlua.wrap(vec3Subtract) },
+    .{ .name = "multiply", .func = zlua.wrap(vec3Multiply) },
+    .{ .name = "divide", .func = zlua.wrap(vec3Divide) },
+    .{ .name = "length", .func = zlua.wrap(vec3Length) },
+    .{ .name = "lengthSquared", .func = zlua.wrap(vec3LengthSquared) },
+    .{ .name = "dot", .func = zlua.wrap(vec3Dot) },
+    .{ .name = "cross", .func = zlua.wrap(vec3Cross) },
+    .{ .name = "unit", .func = zlua.wrap(vec3Unit) },
+};
+
+const vec2_funcs = [_]zlua.FnReg{
+    .{ .name = "add", .func = zlua.wrap(vec2Add) },
+    .{ .name = "subtract", .func = zlua.wrap(vec2Subtract) },
+    .{ .name = "multiply", .func = zlua.wrap(vec2Multiply) },
+    .{ .name = "divide", .func = zlua.wrap(vec2Divide) },
+    .{ .name = "length", .func = zlua.wrap(vec2Length) },
+    .{ .name = "lengthSquared", .func = zlua.wrap(vec2LengthSquared) },
+    .{ .name = "dot", .func = zlua.wrap(vec2Dot) },
+    .{ .name = "cross", .func = zlua.wrap(vec2Cross) },
+    .{ .name = "unit", .func = zlua.wrap(vec2Unit) },
 };
 
 const push_idx = -2;
@@ -79,6 +109,9 @@ pub fn main() !void {
     lua.newLib(&chive_funcs);
     lua.setGlobal("chive");
 
+    lua.newTable();
+    const enums_idx = lua.getTop();
+
     inline for (.{
         .{ "TextureType", objects.TextureType },
         .{ "DisplayMethod", render_manager.DisplayMethod },
@@ -88,17 +121,25 @@ pub fn main() !void {
             lua.pushInteger(field.value);
             lua.setField(push_idx, field.name);
         }
-        lua.setGlobal(pair[0]);
+        lua.setField(enums_idx, pair[0]);
     }
+
+    lua.newTable();
+    inline for (@typeInfo(glfw.Window.InputModeCursor).@"enum".fields) |field| {
+        lua.pushInteger(@intFromEnum(@field(glfw.Window.InputModeCursor, field.name)));
+        lua.setField(push_idx, field.name);
+    }
+    lua.setField(enums_idx, "MouseState");
 
     lua.newTable();
     inline for (@typeInfo(glfw.Key).@"enum".fields) |field| {
         lua.pushInteger(@intFromEnum(@field(glfw.Key, field.name)));
         lua.setField(push_idx, field.name);
     }
-    lua.setGlobal("Key");
+    lua.setField(enums_idx, "Key");
+    lua.setGlobal("enum");
 
-    lua.newTable();
+    lua.newLib(&vec2_funcs);
     inline for (@typeInfo(vectors.Vec2).@"struct".decls) |decl| {
         const val = @field(vectors.Vec2, decl.name);
         if (@TypeOf(val) == vectors.Vec2) {
@@ -106,32 +147,9 @@ pub fn main() !void {
             lua.setField(push_idx, decl.name);
         }
     }
-    lua.setGlobal("Vec2");
+    lua.setGlobal("vec2");
 
-    lua.newTable();
-    lua.pushFunction(zlua.wrap(vec2Length));
-    lua.setField(push_idx, "length");
-    lua.pushFunction(zlua.wrap(vec2LengthSquared));
-    lua.setField(push_idx, "lengthSquared");
-    lua.pushFunction(zlua.wrap(vec2Add));
-    lua.setField(push_idx, "add");
-    lua.pushFunction(zlua.wrap(vec2Subtract));
-    lua.setField(push_idx, "subtract");
-    lua.pushFunction(zlua.wrap(vec2Multiply));
-    lua.setField(push_idx, "multiply");
-    lua.pushFunction(zlua.wrap(vec2Divide));
-    lua.setField(push_idx, "divide");
-    lua.pushFunction(zlua.wrap(vec2Dot));
-    lua.setField(push_idx, "dot");
-    lua.pushFunction(zlua.wrap(vec2Cross));
-    lua.setField(push_idx, "cross");
-    lua.pushFunction(zlua.wrap(vec2Unit));
-    lua.setField(push_idx, "unit");
-    lua.pushValue(stack_top_idx);
-    lua.setField(push_idx, "__index");
-    lua.setMetatableRegistry("Vec2");
-
-    lua.newTable();
+    lua.newLib(&vec3_funcs);
     inline for (@typeInfo(vectors.Vec3).@"struct".decls) |decl| {
         const val = @field(vectors.Vec3, decl.name);
         if (@TypeOf(val) == vectors.Vec3) {
@@ -139,30 +157,7 @@ pub fn main() !void {
             lua.setField(push_idx, decl.name);
         }
     }
-    lua.setGlobal("Vec3");
-
-    lua.newTable();
-    lua.pushFunction(zlua.wrap(vec3Length));
-    lua.setField(push_idx, "length");
-    lua.pushFunction(zlua.wrap(vec3LengthSquared));
-    lua.setField(push_idx, "lengthSquared");
-    lua.pushFunction(zlua.wrap(vec3Add));
-    lua.setField(push_idx, "add");
-    lua.pushFunction(zlua.wrap(vec3Subtract));
-    lua.setField(push_idx, "subtract");
-    lua.pushFunction(zlua.wrap(vec3Multiply));
-    lua.setField(push_idx, "multiply");
-    lua.pushFunction(zlua.wrap(vec3Divide));
-    lua.setField(push_idx, "divide");
-    lua.pushFunction(zlua.wrap(vec3Dot));
-    lua.setField(push_idx, "dot");
-    lua.pushFunction(zlua.wrap(vec3Cross));
-    lua.setField(push_idx, "cross");
-    lua.pushFunction(zlua.wrap(vec3Unit));
-    lua.setField(push_idx, "unit");
-    lua.pushValue(stack_top_idx);
-    lua.setField(push_idx, "__index");
-    lua.setMetatableRegistry("Vec3");
+    lua.setGlobal("vec3");
 
     lua.newTable();
     inline for (@typeInfo(vectors.Color).@"struct".decls) |decl| {
@@ -172,7 +167,7 @@ pub fn main() !void {
             lua.setField(push_idx, decl.name);
         }
     }
-    lua.setGlobal("Color");
+    lua.setGlobal("color");
 
     const script = try tools.path_from_binaryZ(allocator, "scripts/main.lua");
     defer allocator.free(script);
@@ -181,6 +176,7 @@ pub fn main() !void {
         const err_msg = lua.toString(stack_top_idx) catch "unkown error";
         log.err("Lua Error: {s}", .{err_msg});
         lua.pop(1);
+        if (setup_called) renderer.deinit();
         return error.LuaRuntime;
     };
 
@@ -191,105 +187,30 @@ pub fn main() !void {
 
     defer renderer.deinit();
 
-    var last_time = time.milliTimestamp();
-
-    // var last_mouse_x: f32 = 0.0;
-    // var last_mouse_y: f32 = 0.0;
-
-    // var locked = false;
-    // var was_escape_presed = false;
+    var last_tick = time.milliTimestamp();
 
     while (!renderer.window.shouldClose()) {
-        const time_stamp = time.milliTimestamp();
-        const delta_time: f32 = @as(f32, @floatFromInt(time_stamp - last_time)) / 1000.0;
+        const current_tick = time.milliTimestamp();
+        const delta_time: f32 = @as(f32, @floatFromInt(current_tick - last_tick)) / 1000.0;
         try tick(lua, delta_time);
 
-        if (time_stamp - last_time >= fps_milli) {
-            last_time = time_stamp;
-            renderer.render_scene(&cameras.items[current_camera], scenes.items[current_scene]);
+        if (current_tick - last_tick >= fps_milli) {
+            last_tick = current_tick;
+            renderer.renderScene(&cameras.items[current_camera], scenes.items[current_scene]);
             try update(lua, delta_time);
         }
 
         renderer.update();
-        // const mouse_x = @as(f32, @floatCast(renderer.window.getCursorPos().xpos));
-        // const mouse_y = @as(f32, @floatCast(renderer.window.getCursorPos().ypos));
-
-        // var velocity: vectors.Vec3 = .zero;
-
-        // if (locked) {
-        //     camera.increaseRotation(.{ .x = (sensitivity * delta_time * -(mouse_y - last_mouse_y)) / @as(f32, @floatFromInt(renderer.height)), .y = (sensitivity * delta_time * (mouse_x - last_mouse_x)) / @as(f32, @floatFromInt(renderer.width)), .z = 0 });
-        // }
-
-        // const escape_state = renderer.window.getKey(.escape);
-        // if (escape_state == glfw.Action.release and !was_escape_presed) {
-        //     locked = !locked;
-        //     if (locked) {
-        //         renderer.window.setInputModeCursor(.disabled);
-        //     } else {
-        //         renderer.window.setInputModeCursor(.normal);
-        //     }
-        // }
-        //         was_escape_presed = (escape_state == .release);
-        //         if (renderer.window.getKey(glfw.Key.w) == glfw.Action.press) {
-        //             velocity.add(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.a) == glfw.Action.press) {
-        //             velocity.add(.{ .x = -math.cos(camera.rotation.y), .y = 0, .z = math.sin(camera.rotation.y) });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.s) == glfw.Action.press) {
-        //             velocity.subtract(.{ .x = math.sin(camera.rotation.y), .y = 0, .z = math.cos(camera.rotation.y) });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.d) == glfw.Action.press) {
-        //             velocity.add(.{ .x = math.cos(camera.rotation.y), .y = 0, .z = -math.sin(camera.rotation.y) });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.space) == glfw.Action.press) {
-        //             velocity.add(vectors.Vec3.up);
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.left_shift) == glfw.Action.press) {
-        //             velocity.subtract(vectors.Vec3.up);
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.left) == glfw.Action.press) {
-        //             camera.increaseRotation(.{ .x = 0, .y = -sensitivity * delta_time, .z = 0 });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.up) == glfw.Action.press) {
-        //             camera.increaseRotation(.{ .x = sensitivity * delta_time, .y = 0, .z = 0 });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.down) == glfw.Action.press) {
-        //             camera.increaseRotation(.{ .x = -sensitivity * delta_time, .y = 0, .z = 0 });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.right) == glfw.Action.press) {
-        //             camera.increaseRotation(.{ .x = 0, .y = sensitivity * delta_time, .z = 0 });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.q) == glfw.Action.press) {
-        //             camera.increaseRotation(.{ .x = 0, .y = 0, .z = -sensitivity * delta_time });
-        //         }
-        //         if (renderer.window.getKey(glfw.Key.e) == glfw.Action.press) {
-        //             camera.increaseRotation(.{ .x = 0, .y = 0, .z = sensitivity * delta_time });
-        //         }
-
-        //         var unit = velocity.unit();
-        //         unit.multiply(delta_time * walk_speed);
-
-        //         camera.position.add(unit);
-
-        //         last_mouse_x = mouse_x;
-        //         last_mouse_y = mouse_y;
-
-        //         renderer.render_scene(&camera, scene);
     }
 }
 
 fn setup(lua: *zlua.Lua) i32 {
     const title = pullString(lua, 1);
-    fps = pullInt(lua, 2);
-    fps_milli = @divTrunc(1000, fps);
-    const width = pullUInt(lua, 3);
-    const height = pullUInt(lua, 4);
-    const display_method = pullUInt(lua, 5);
-    const resolution_width = pullUInt(lua, 6);
-    const resolution_height = pullUInt(lua, 7);
-    const texture_atlas_size = pullUInt(lua, 8);
-    const texture_atlas_count = pullUInt(lua, 9);
+    const size = pullVec2(lua, 2);
+    const display_method = pullUInt(lua, 3);
+    const resolution = pullVec2(lua, 4);
+    const texture_atlas_size = pullUInt(lua, 5);
+    const texture_atlas_count = pullUInt(lua, 6);
 
     setup_called = true;
 
@@ -298,11 +219,11 @@ fn setup(lua: *zlua.Lua) i32 {
     renderer = render_manager.Renderer.init(
         allocator,
         title,
-        width,
-        height,
+        @as(u32, @intFromFloat(size.x)),
+        @as(u32, @intFromFloat(size.y)),
         display_method_enum,
-        resolution_width,
-        resolution_height,
+        @as(u32, @intFromFloat(resolution.x)),
+        @as(u32, @intFromFloat(resolution.y)),
         texture_atlas_size,
         texture_atlas_count,
     ) catch |err| {
@@ -310,6 +231,35 @@ fn setup(lua: *zlua.Lua) i32 {
         return 0;
     };
     return 0;
+}
+
+fn setTitle(lua: *zlua.Lua) i32 {
+    const title = pullString(lua, 1);
+    renderer.setTitle(title);
+    return 0;
+}
+
+fn setWindowSize(lua: *zlua.Lua) i32 {
+    const size = pullVec2(lua, 1);
+    renderer.setSize(size);
+    return 0;
+}
+
+fn setMousePos(lua: *zlua.Lua) i32 {
+    const pos = pullVec2(lua, 1);
+    renderer.setCursorPos(pos);
+    return 0;
+}
+
+fn setFps(lua: *zlua.Lua) i32 {
+    fps = pullInt(lua, 1);
+    fps_milli = @divTrunc(1000, fps);
+    return 0;
+}
+
+fn getWindowSize(lua: *zlua.Lua) i32 {
+    pushVec2(lua, .{ .x = @floatFromInt(renderer.width), .y = @floatFromInt(renderer.height) });
+    return 1;
 }
 
 fn createScene(lua: *zlua.Lua) i32 {
@@ -361,7 +311,7 @@ fn createTexture(lua: *zlua.Lua) i32 {
         .tex_size = size,
     };
 
-    const texture_id = renderer.add_texture(texture) catch {
+    const texture_id = renderer.addTexture(texture) catch {
         log.err("Out of Memory", .{});
         return 0;
     };
@@ -403,7 +353,7 @@ fn loadTextureAtlas(lua: *zlua.Lua) i32 {
     };
     const atlas = atlas_image.rawBytes();
 
-    const atlas_id = renderer.load_texture_atlas(atlas) catch |err| {
+    const atlas_id = renderer.loadTextureAtlas(atlas) catch |err| {
         if (err == error.OutOfTextureAtlasBuffers) {
             log.err("Ran Out of Texture Atlas Storage", .{});
             return 0;
@@ -534,6 +484,16 @@ fn setCameraRotation(lua: *zlua.Lua) i32 {
     return 0;
 }
 
+fn setCameraRadRotation(lua: *zlua.Lua) i32 {
+    const camera_id = pullUInt(lua, 1);
+    const rotation = pullVec3(lua, 2);
+
+    const camera = &cameras.items[camera_id];
+
+    camera.*.rotation = rotation;
+    return 0;
+}
+
 fn setCameraFov(lua: *zlua.Lua) i32 {
     const camera_id = pullUInt(lua, 1);
     const fov = pullNumber(lua, 2);
@@ -600,7 +560,7 @@ fn getMousePos(lua: *zlua.Lua) i32 {
 }
 
 fn update(lua: *zlua.Lua, delta_time: f32) !void {
-    _ = lua.getGlobal("Update") catch unreachable;
+    _ = lua.getGlobal("update") catch unreachable;
     lua.pushNumber(delta_time);
     lua.protectedCall(.{ .args = 1 }) catch {
         const err_msg = lua.toString(stack_top_idx) catch "unkown error";
@@ -611,7 +571,7 @@ fn update(lua: *zlua.Lua, delta_time: f32) !void {
 }
 
 fn tick(lua: *zlua.Lua, delta_time: f32) !void {
-    _ = lua.getGlobal("Tick") catch unreachable;
+    _ = lua.getGlobal("tick") catch unreachable;
     lua.pushNumber(delta_time);
     lua.protectedCall(.{ .args = 1 }) catch {
         const err_msg = lua.toString(stack_top_idx) catch "unkown error";
@@ -629,8 +589,6 @@ fn pushVec3(lua: *zlua.Lua, vector: vectors.Vec3) void {
     lua.setField(push_idx, "y");
     lua.pushNumber(vector.z);
     lua.setField(push_idx, "z");
-    _ = lua.getMetatableRegistry("Vec3");
-    lua.setMetatable(push_idx);
 }
 
 fn pullVec3(lua: *zlua.Lua, idx: i32) vectors.Vec3 {
@@ -652,8 +610,6 @@ fn pushVec2(lua: *zlua.Lua, vector: vectors.Vec2) void {
     lua.setField(push_idx, "x");
     lua.pushNumber(vector.y);
     lua.setField(push_idx, "y");
-    _ = lua.getMetatableRegistry("Vec2");
-    lua.setMetatable(push_idx);
 }
 
 fn pullVec2(lua: *zlua.Lua, idx: i32) vectors.Vec2 {
@@ -664,6 +620,22 @@ fn pullVec2(lua: *zlua.Lua, idx: i32) vectors.Vec2 {
     const y: f32 = @floatCast(lua.toNumber(stack_top_idx) catch 0);
     lua.pop(1);
     return .{ .x = x, .y = y };
+}
+
+fn writeVec2(lua: *zlua.Lua, idx: i32, vector: vectors.Vec2) void {
+    lua.pushNumber(vector.x);
+    lua.setField(idx, "x");
+    lua.pushNumber(vector.y);
+    lua.setField(idx, "y");
+}
+
+fn writeVec3(lua: *zlua.Lua, idx: i32, vector: vectors.Vec3) void {
+    lua.pushNumber(vector.x);
+    lua.setField(idx, "x");
+    lua.pushNumber(vector.y);
+    lua.setField(idx, "y");
+    lua.pushNumber(vector.z);
+    lua.setField(idx, "z");
 }
 
 fn pushColor(lua: *zlua.Lua, color: vectors.Color) void {
@@ -710,32 +682,32 @@ fn vec2Add(lua: *zlua.Lua) i32 {
     var vector1 = pullVec2(lua, 1);
     const vector2 = pullVec2(lua, 2);
     vector1.add(vector2);
-    pushVec2(lua, vector1);
-    return 1;
+    writeVec2(lua, 1, vector1);
+    return 0;
 }
 
 fn vec2Subtract(lua: *zlua.Lua) i32 {
     var vector1 = pullVec2(lua, 1);
     const vector2 = pullVec2(lua, 2);
     vector1.subtract(vector2);
-    pushVec2(lua, vector1);
-    return 1;
+    writeVec2(lua, 1, vector1);
+    return 0;
 }
 
 fn vec2Multiply(lua: *zlua.Lua) i32 {
     var vector = pullVec2(lua, 1);
     const scalar = pullNumber(lua, 2);
     vector.multiply(scalar);
-    pushVec2(lua, vector);
-    return 1;
+    writeVec2(lua, 1, vector);
+    return 0;
 }
 
 fn vec2Divide(lua: *zlua.Lua) i32 {
     var vector = pullVec2(lua, 1);
     const scalar = pullNumber(lua, 2);
     vector.divide(scalar);
-    pushVec2(lua, vector);
-    return 1;
+    writeVec2(lua, 1, vector);
+    return 0;
 }
 
 fn vec2Dot(lua: *zlua.Lua) i32 {
@@ -774,32 +746,32 @@ fn vec3Add(lua: *zlua.Lua) i32 {
     var vector1 = pullVec3(lua, 1);
     const vector2 = pullVec3(lua, 2);
     vector1.add(vector2);
-    pushVec3(lua, vector1);
-    return 1;
+    writeVec3(lua, 1, vector1);
+    return 0;
 }
 
 fn vec3Subtract(lua: *zlua.Lua) i32 {
     var vector1 = pullVec3(lua, 1);
     const vector2 = pullVec3(lua, 2);
     vector1.subtract(vector2);
-    pushVec3(lua, vector1);
-    return 1;
+    writeVec3(lua, 1, vector1);
+    return 0;
 }
 
 fn vec3Multiply(lua: *zlua.Lua) i32 {
     var vector = pullVec3(lua, 1);
     const scalar = pullNumber(lua, 2);
     vector.multiply(scalar);
-    pushVec3(lua, vector);
-    return 1;
+    writeVec3(lua, 1, vector);
+    return 0;
 }
 
 fn vec3Divide(lua: *zlua.Lua) i32 {
     var vector = pullVec3(lua, 1);
     const scalar = pullNumber(lua, 2);
     vector.divide(scalar);
-    pushVec3(lua, vector);
-    return 1;
+    writeVec3(lua, 1, vector);
+    return 0;
 }
 
 fn vec3Dot(lua: *zlua.Lua) i32 {

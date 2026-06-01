@@ -67,9 +67,6 @@ pub const Renderer = struct {
             return error.GLFWInitFailed;
         }
 
-        //const title_c = try allocator.dupeZ(u8, title);
-        //defer allocator.free(title_c);
-
         var hints: glfw.Window.Hints = .{
             .opengl_profile = .opengl_core_profile,
             .context_version_major = 4,
@@ -281,8 +278,23 @@ pub const Renderer = struct {
         glfw.terminate();
     }
 
-    // use maps
-    pub fn load_texture_atlas(self: *Self, data: []const u8) !u32 {
+    pub fn setTitle(self: Self, title: [:0]const u8) void {
+        self.window.setTitle(title);
+    }
+
+    pub fn setCursorPos(self: Self, pos: vectors.Vec2) void {
+        self.window.setCursorPos(@floatCast(pos.x), @floatCast(pos.y));
+    }
+
+    pub fn setSize(self: Self, size: vectors.Vec2) void {
+        self.window.setSize(.{ .width = @intFromFloat(size.x), .height = @intFromFloat(size.y) });
+    }
+
+    // pub fn setIcon(self: Self) void {
+    //     self.window.setIcon(allocator: mem.Allocator, images: ?[]const Image)
+    // }
+
+    pub fn loadTextureAtlas(self: *Self, data: []const u8) !u32 {
         if (self.texture_atlas_index >= self.texture_atlas_count) return error.OutOfTextureAtlasBuffers;
         //if (data.len != self.texture_atlas_size * self.texture_atlas_size) return error.IncorrectTextureAtlasSize; fix
         const data_c = try self.allocator.dupeZ(u8, data);
@@ -307,16 +319,13 @@ pub const Renderer = struct {
         return @as(u32, @intCast(pos));
     }
 
-    // editing atlases and unloading atlases?
-
-    // add unloading
-    pub fn add_texture(self: *Self, texture: objects.Texture) !u32 {
+    pub fn addTexture(self: *Self, texture: objects.Texture) !u32 {
         const pos = self.texture_list.items.len;
         try self.texture_list.append(texture);
         return @as(u32, @intCast(pos));
     }
 
-    fn render_update(self: *Self, camera: *objects.Camera) void {
+    fn renderUpdate(self: *Self, camera: *objects.Camera) void {
         const size = self.window.getFramebufferSize();
         if ((self.width == size.width and self.height == size.height) and camera.focal_length != 0) return;
         self.*.width = size.width;
@@ -324,12 +333,12 @@ pub const Renderer = struct {
         camera.updateFocalLength(self.width);
     }
 
-    pub fn render_scene(self: *Self, camera: *objects.Camera, scene: scene_manager.Scene) void {
+    pub fn renderScene(self: *Self, camera: *objects.Camera, scene: scene_manager.Scene) void {
         const surfaces = scene.surfaces.items;
         const surface_count = surfaces.len;
         const textures = self.texture_list.items;
 
-        self.render_update(camera);
+        self.renderUpdate(camera);
 
         gl.bindBuffer(self.surfaceSSBO, .shader_storage_buffer);
         gl.bufferData(.shader_storage_buffer, objects.Surface, surfaces, .dynamic_draw);
