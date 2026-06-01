@@ -42,5 +42,7 @@ function Update(delta)
 end
 
 function Tick(delta)
-
+    if chive.GetKeyDown(Key.e) then
+        print("ok")
+    end
 end

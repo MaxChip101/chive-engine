@@ -551,22 +551,34 @@ fn setCurrentCamera(lua: *zlua.Lua) i32 {
 }
 
 fn getKeyDown(lua: *zlua.Lua) i32 {
-    const key = pullUInt(lua, 1);
-    const state = renderer.window.getKey(@enumFromInt(key)) == glfw.Action.press;
+    const key = pullInt(lua, 1);
+    const key_enum = std.meta.intToEnum(glfw.Key, key) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+    const state = renderer.window.getKey(key_enum) == glfw.Action.press;
     lua.pushBoolean(state);
     return 1;
 }
 
 fn getKeyUp(lua: *zlua.Lua) i32 {
-    const key = pullUInt(lua, 1);
-    const state = renderer.window.getKey(@enumFromInt(key)) == glfw.Action.release;
+    const key = pullInt(lua, 1);
+    const key_enum = std.meta.intToEnum(glfw.Key, key) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+    const state = renderer.window.getKey(key_enum) == glfw.Action.release;
     lua.pushBoolean(state);
     return 1;
 }
 
 fn getKeyRepeat(lua: *zlua.Lua) i32 {
-    const key = pullUInt(lua, 1);
-    const state = renderer.window.getKey(@enumFromInt(key)) == glfw.Action.repeat;
+    const key = pullInt(lua, 1);
+    const key_enum = std.meta.intToEnum(glfw.Key, key) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+    const state = renderer.window.getKey(key_enum) == glfw.Action.repeat;
     lua.pushBoolean(state);
     return 1;
 }
