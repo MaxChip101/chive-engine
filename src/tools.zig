@@ -2,19 +2,19 @@ const std = @import("std");
 const mem = std.mem;
 const fs = std.fs;
 
-pub fn path_from_binary(allocator: mem.Allocator, path: []const u8) ![]u8 {
+pub fn pathFromBinary(allocator: mem.Allocator, path: []const u8) ![]u8 {
     const binary_directory = try fs.selfExeDirPathAlloc(allocator);
     defer allocator.free(binary_directory);
     return try fs.path.join(allocator, &[_][]const u8{ binary_directory, path });
 }
 
-pub fn path_from_binaryZ(allocator: mem.Allocator, path: []const u8) ![:0]const u8 {
+pub fn pathFromBinaryZ(allocator: mem.Allocator, path: []const u8) ![:0]const u8 {
     const binary_directory = try fs.selfExeDirPathAlloc(allocator);
     defer allocator.free(binary_directory);
     return try fs.path.joinZ(allocator, &[_][]const u8{ binary_directory, path });
 }
 
-pub fn read_file_from_path(allocator: mem.Allocator, path: []const u8) ![]u8 {
+pub fn readFileFromPath(allocator: mem.Allocator, path: []const u8) ![]u8 {
     var file = try fs.openFileAbsolute(path, .{});
     defer file.close();
 
@@ -23,7 +23,7 @@ pub fn read_file_from_path(allocator: mem.Allocator, path: []const u8) ![]u8 {
     return content;
 }
 
-pub fn read_file_from_pathZ(allocator: mem.Allocator, path: []const u8) ![:0]const u8 {
+pub fn readFileFromPathZ(allocator: mem.Allocator, path: []const u8) ![:0]const u8 {
     var file = try fs.openFileAbsolute(path, .{});
     defer file.close();
 

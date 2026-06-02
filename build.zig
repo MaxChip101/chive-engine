@@ -40,6 +40,25 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("zlua", lua_dep.module("zlua"));
     exe.root_module.addImport("zigimg", zigimg.module("zigimg"));
 
+    const gen = b.addExecutable(.{
+        .name = "gen",
+        .root_source_file = b.path("gen.zig"),
+        .target = target,
+        .optimize = .Debug,
+    });
+
+    gen.root_module.addImport("glfw", glfw_dep.module("glfw"));
+    gen.root_module.addImport("types", b.createModule(.{
+        .root_source_file = b.path("src/gen_types.zig"),
+    }));
+    gen.root_module.addImport("tools", b.createModule(.{
+        .root_source_file = b.path("src/tools.zig"),
+    }));
+
+    const run_gen = b.addRunArtifact(gen);
+    run_gen.addArg("scripts/chive.d.lua");
+    exe.step.dependOn(&run_gen.step);
+
     b.installArtifact(exe);
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
