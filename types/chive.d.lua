@@ -175,6 +175,14 @@ Vec3 = Vec3
 ---@type Color
 Color = Color
 
+---@class color
+---@field zero Color
+---@field black Color
+---@field white Color
+
+---@type color
+color = color
+
 ---@class vec2
 ---@field zero Vec2
 ---@field one Vec2

@@ -48,6 +48,18 @@ pub fn main() !void {
         try writer.print("\n---@type {s}\n{s} = {s}\n\n", .{ entry[0], entry[0], entry[0] });
     }
 
+    try writer.writeAll("---@class color\n");
+    inline for (@typeInfo(structs[2][1]).@"struct".decls) |decls| {
+        try writer.print("---@field {s} Color\n", .{decls.name});
+    }
+    try writer.writeAll(
+        \\
+        \\---@type color
+        \\color = color
+        \\
+        \\
+    );
+
     try writer.writeAll("---@class vec2\n");
     inline for (@typeInfo(structs[0][1]).@"struct".decls) |decls| {
         try writer.print("---@field {s} Vec2\n", .{decls.name});
