@@ -57,7 +57,7 @@ function Update(delta)
     if chive.getKeyDown(Key.w) then
         vec3.add(velocity, { x = math.sin(cam_rot.y), y = 0, z = math.cos(cam_rot.y) })
     end
-    if chive.getKeyDown(enum.Key.a) then
+    if chive.getKeyDown(Key.a) then
         vec3.add(velocity, { x = -math.cos(cam_rot.y), y = 0, z = math.sin(cam_rot.y) })
     end
     if chive.getKeyDown(Key.s) then
