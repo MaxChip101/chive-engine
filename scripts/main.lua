@@ -6,13 +6,11 @@ local display_method = DisplayMethod.Windowed
 local texture_atlas_size = 1024
 local texture_atlas_count = 1
 
-
 local walkspeed = 3
 local sensitivity = 600
 local cam_pos = { x = 0, y = 0, z = 0 }
 local cam_rot = { x = 0, y = 0, z = 0 }
 local velocity = { x = 0, y = 0, z = 0 }
-
 
 chive.setup(title, size, display_method, resolution, texture_atlas_size, texture_atlas_count)
 chive.setFps(fps)

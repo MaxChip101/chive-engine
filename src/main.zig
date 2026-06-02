@@ -165,7 +165,6 @@ pub fn main() !void {
     }
 }
 
-/// @lua setup(title: string, size: Vec2, display_method: DisplayMethod, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer): void
 fn setup(lua: *zlua.Lua) i32 {
     const title = lua_funcs.pullString(lua, 1);
     const size = lua_funcs.pullVec2(lua, 2);
@@ -195,7 +194,6 @@ fn setup(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// @lua setTitle(title: string): void
 fn setTitle(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -206,7 +204,6 @@ fn setTitle(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// @lua setWindowSize(size: Vec2): void
 fn setWindowSize(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -217,7 +214,6 @@ fn setWindowSize(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// @lua setMousePos(pos: Vec2): void
 fn setMousePos(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -228,14 +224,12 @@ fn setMousePos(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// @lua setFps(fps: integer): void
 fn setFps(lua: *zlua.Lua) i32 {
     fps = lua_funcs.pullInt(lua, 1);
     fps_milli = @divTrunc(1000, fps);
     return 0;
 }
 
-/// @lua setWindowSize(): Vec2
 fn getWindowSize(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -245,7 +239,6 @@ fn getWindowSize(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// @lua createScene(): integer
 fn createScene(lua: *zlua.Lua) i32 {
     const scene = scene_manager.Scene.init(allocator) catch {
         log.err("Out of Memory", .{});
@@ -261,14 +254,12 @@ fn createScene(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// @lua setCurrentScene(scene_id: integer): void
 fn setCurrentScene(lua: *zlua.Lua) i32 {
     const scene_id = lua_funcs.pullUInt(lua, 1);
     current_scene = scene_id;
     return 0;
 }
 
-/// @lua createTexture(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: TextureType, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
 fn createTexture(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -306,7 +297,6 @@ fn createTexture(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// @lua loadTextureAtlas(atlas_path: string): integer
 fn loadTextureAtlas(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -354,7 +344,6 @@ fn loadTextureAtlas(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// @lua createSurface()
 fn createSurface(lua: *zlua.Lua) i32 {
     const position = lua_funcs.pullVec3(lua, 1);
     const normal = lua_funcs.pullVec3(lua, 2);
