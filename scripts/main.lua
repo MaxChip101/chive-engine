@@ -69,6 +69,14 @@ function Update(delta)
     if chive.getKeyDown(Key.left_shift) then
         vec3.subtract(velocity, { x = 0, y = 1, z = 0 })
     end
+    if chive.getKeyPressed(Key.t) then
+        print("t")
+        chive.setDisplayMode(DisplayMode.Borderless)
+    end
+    if chive.getKeyPressed(Key.y) then
+        print("y")
+        chive.setDisplayMode(DisplayMode.Windowed)
+    end
 
     local unit = vec3.unit(velocity)
     vec3.multiply(unit, walkspeed * delta)

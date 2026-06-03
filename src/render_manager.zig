@@ -36,6 +36,8 @@ pub const Renderer = struct {
     resolution_width: u32,
     resolution_height: u32,
 
+    display_mode: DisplayMode,
+
     last_texture_id: u32,
     texture_objects: std.AutoArrayHashMap(u32, objects.Texture),
 
@@ -81,6 +83,12 @@ pub const Renderer = struct {
 
         var monitor = glfw.Monitor.getPrimary();
         const video_mode = monitor.?.getVideoMode();
+
+        hints.red_bits = @intCast(video_mode.?.getRedBits());
+        hints.green_bits = @intCast(video_mode.?.getGreenBits());
+        hints.blue_bits = @intCast(video_mode.?.getBlueBits());
+        hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
+
         if (display_mode == .BorderlessWindowed or display_mode == .Windowed) {
             const screen_width: c_int = @intCast(video_mode.?.getWidth());
             const screen_height: c_int = @intCast(video_mode.?.getHeight());
@@ -89,10 +97,6 @@ pub const Renderer = struct {
         }
         if (display_mode == .Borderless or display_mode == .BorderlessWindowed) {
             hints.decorated = false;
-            hints.red_bits = @intCast(video_mode.?.getRedBits());
-            hints.green_bits = @intCast(video_mode.?.getGreenBits());
-            hints.blue_bits = @intCast(video_mode.?.getBlueBits());
-            hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
         }
         if (display_mode == .Borderless or display_mode == .FullScreen) {
             window_width = video_mode.?.getWidth();
@@ -107,9 +111,9 @@ pub const Renderer = struct {
             return error.GLFWWindowCreateFailed;
         };
 
-        if (display_mode == .BorderlessWindowed) {
-            window.setAttrib(.decorated, false);
-        }
+        // if (display_mode == .BorderlessWindowed) {
+        //     window.setAttrib(.decorated, false);
+        // }
 
         glfw.makeContextCurrent(window);
         //glfw.swapInterval(1);
@@ -243,6 +247,7 @@ pub const Renderer = struct {
             .fragmentShader = fragmentShader,
             .vertexShader = vertexShader,
             .shaderProgram = shaderProgram,
+            .display_mode = display_mode,
             .texture_atlas = texture_atlas,
             .texture_atlas_size = texture_atlas_size,
             .texture_atlas_count = texture_atlas_count,
@@ -280,6 +285,37 @@ pub const Renderer = struct {
         glfw.terminate();
     }
 
+    pub fn setDisplayMode(self: *Self, display_mode: DisplayMode) void {
+        var window_width = self.width;
+        var window_height = self.height;
+
+        var monitor = glfw.Monitor.getPrimary();
+        const video_mode = monitor.?.getVideoMode();
+        if (display_mode == .FullScreen or display_mode == .Windowed) {
+            self.window.setAttrib(.decorated, true);
+        }
+        if (display_mode == .BorderlessWindowed or display_mode == .Windowed) {
+            self.window.restore();
+            const screen_width: c_int = @intCast(video_mode.?.getWidth());
+            const screen_height: c_int = @intCast(video_mode.?.getHeight());
+            const x = @divTrunc(screen_width - @as(c_int, @intCast(window_width)), 2);
+            const y = @divTrunc(screen_height - @as(c_int, @intCast(window_height)), 2);
+            self.window.setPos(.{ .x = x, .y = y });
+        }
+        if (display_mode == .Borderless or display_mode == .BorderlessWindowed) {
+            self.window.setAttrib(.decorated, false);
+        }
+        if (display_mode == .Borderless or display_mode == .FullScreen) {
+            window_width = video_mode.?.getWidth();
+            window_height = video_mode.?.getHeight();
+            self.window.maximize();
+        }
+        if (display_mode == .FullScreen or display_mode == .BorderlessWindowed or display_mode == .Windowed) {
+            monitor = null;
+        }
+        self.*.display_mode = display_mode;
+    }
+
     pub fn setTitle(self: Self, title: [:0]const u8) void {
         self.window.setTitle(title);
     }
@@ -290,6 +326,10 @@ pub const Renderer = struct {
 
     pub fn setSize(self: Self, size: vectors.Vec2) void {
         self.window.setSize(.{ .width = @intFromFloat(size.x), .height = @intFromFloat(size.y) });
+    }
+
+    pub fn setResizable(self: Self, resizable: bool) void {
+        self.window.setAttrib(.resizable, resizable);
     }
 
     // pub fn setIcon(self: Self) void {

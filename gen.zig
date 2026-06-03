@@ -110,14 +110,30 @@ pub fn main() !void {
         \\---@class chive
         \\---@field setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer)
         \\---@field setTitle fun(title: string)
+        \\---@field setDisplayMode fun(display_mode: integer)
+        \\---@field getDisplayMode fun(): integer
+        \\---@field setResizable fun(resizable: boolean)
         \\---@field setWindowSize fun(size: Vec2)
         \\---@field setMousePos fun(pos: Vec2)
         \\---@field setFps fun(fps: integer)
+        \\---@field getFps fun(): integer
         \\---@field getWindowSize fun(): Vec2
+        \\---@field getWindowPos fun(): Vec2
+        \\---@field setWindowPos fun(position: Vec2)
         \\---@field createScene fun(): integer
+        \\---@field getSceneIDs fun(): integer[]
         \\---@field deleteScene fun(scene_id: integer): boolean
         \\---@field setCurrentScene fun(scene_id: integer)
+        \\---@field getCurrentScene fun(): integer
         \\---@field createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
+        \\---@field getTextureIDs fun(): integer[]
+        \\---@field getTextureUVMin fun(texture_id: integer): Vec2
+        \\---@field getTextureUVMax fun(texture_id: integer): Vec2
+        \\---@field getTextureSize fun(texture_id: integer): Vec2
+        \\---@field getTextureTint fun(texture_id: integer): Color
+        \\---@field getTextureUFlip fun(texture_id: integer): boolean
+        \\---@field getTextureVFlip fun(texture_id: integer): boolean
+        \\---@field getTextureAtlasID fun(texture_id: integer): integer
         \\---@field setTextureUVMin fun(texture_id: integer, uv_min: Vec2)
         \\---@field setTextureUVMax fun(texture_id: integer, uv_max: Vec2)
         \\---@field setTextureSize fun(texture_id: integer, size: Vec2)
@@ -128,23 +144,41 @@ pub fn main() !void {
         \\---@field removeTexture fun(texture_id: integer): boolean
         \\---@field loadTextureAtlas fun(atlas_path: string): integer
         \\---@field createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
+        \\---@field getSurfacePosition fun(surface_id: integer): Vec3
+        \\---@field getSurfaceNormal fun(surface_id: integer): Vec3
+        \\---@field getSurfaceRotation fun(surface_id: integer): number
+        \\---@field getSurfaceRadRotation fun(surface_id: integer): number
+        \\---@field getSurfaceSize fun(surface_id: integer): Vec2
+        \\---@field getSurfaceTextureID fun(surface_id: integer): integer
         \\---@field setSurfacePosition fun(surface_id: integer, position: Vec3)
         \\---@field setSurfaceNormal fun(surface_id: integer, normal: Vec3)
         \\---@field setSurfaceRotation fun(surface_id: integer, rotation: number)
+        \\---@field setSurfaceRadRotation fun(surface_id: integer, rad_rotation: number)
         \\---@field setSurfaceSize fun(surface_id: integer, size: Vec2)
         \\---@field setSurfaceTextureID fun(surface_id: integer, texture_id: integer)
         \\---@field removeSurface fun(surface_id: integer): boolean
         \\---@field createCamera fun(position: Vec3, rotation: Vec3, fov: number): integer
+        \\---@field getCameraIDs fun(): integer[]
+        \\---@field getCameraPosition fun(camera_id: integer): Vec3
+        \\---@field getCameraRotation fun(camera_id: integer): Vec3
+        \\---@field getCameraRadRotation fun(camera_id: integer): Vec3
+        \\---@field getCameraRadFov fun(camera_id: integer): number
+        \\---@field getCameraFov fun(camera_id: integer): number
         \\---@field setCameraPosition fun(camera_id: integer, position: Vec3)
         \\---@field setCameraRotation fun(camera_id: integer, rotation: Vec3)
         \\---@field setCameraRadRotation fun(camera_id: integer, rad_rotation: Vec3)
+        \\---@field setCameraRadFov fun(camera_id: integer, rad_fov: number)
         \\---@field setCameraFov fun(camera_id: integer, fov: number)
-        \\---@field deletetCamera fun(camera_id: integer): boolean
+        \\---@field deleteCamera fun(camera_id: integer): boolean
         \\---@field setCurrentCamera fun(camera_id: integer)
+        \\---@field getCurrentCamera fun(): integer
         \\---@field getKeyDown fun(key: integer): boolean
         \\---@field getKeyUp fun(key: integer): boolean
+        \\---@field getKeyPressed fun(key: integer): boolean
+        \\---@field getKeyReleased fun(key: integer): boolean
         \\---@field getKeyRepeat fun(key: integer): boolean
         \\---@field setMouseState fun(mouse_state: integer)
+        \\---@field getMouseState fun(): integer
         \\---@field getMousePos fun(): Vec2
         \\
         \\

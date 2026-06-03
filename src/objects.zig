@@ -28,6 +28,26 @@ pub const Surface = extern struct {
     _pad: [2]f32 = .{ 0, 0 },
 
     const Self = @This();
+
+    pub fn init(position: vectors.Vec3, normal: vectors.Vec3, rotation: f32, size: vectors.Vec2, texture_id: u32) Self {
+        const rad_rotation = math.degreesToRadians(rotation);
+
+        return .{
+            .position = position,
+            .rotation = rad_rotation,
+            .normal = normal,
+            .texture_id = texture_id,
+            .size = size,
+        };
+    }
+
+    pub fn setRotation(self: *Self, rotation: f32) void {
+        self.*.rotation = math.degreesToRadians(rotation);
+    }
+
+    pub fn getRotation(self: Self) f32 {
+        return math.radiansToDegrees(self.rotation);
+    }
 };
 
 pub const Camera = extern struct {
@@ -57,10 +77,12 @@ pub const Camera = extern struct {
         self.*.rotation = vectors.Vec3{ .x = math.degreesToRadians(rotation.x), .y = math.degreesToRadians(rotation.y), .z = math.degreesToRadians(rotation.z) };
     }
 
-    pub fn increaseRotation(self: *Self, rotation: vectors.Vec3) void {
-        self.*.rotation.x += math.degreesToRadians(rotation.x);
-        self.*.rotation.y += math.degreesToRadians(rotation.y);
-        self.*.rotation.z += math.degreesToRadians(rotation.z);
+    pub fn getRotation(self: Self) vectors.Vec3 {
+        return .{ .x = math.radiansToDegrees(self.rotation.x), .y = math.radiansToDegrees(self.rotation.y), .z = math.radiansToDegrees(self.rotation.z) };
+    }
+
+    pub fn getFov(self: Self) f32 {
+        return math.radiansToDegrees(self.fov);
     }
 
     pub fn updateFocalLength(self: *Self, width: u32) void {
