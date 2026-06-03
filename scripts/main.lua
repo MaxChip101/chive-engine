@@ -77,6 +77,6 @@ function Update(delta)
     chive.setCameraRadRotation(camera_id, cam_rot)
 end
 
-function Tick(delta)
+function FixedUpdate(fixed_delta)
 
 end
