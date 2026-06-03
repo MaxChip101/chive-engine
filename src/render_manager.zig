@@ -11,7 +11,7 @@ const scene_manager = @import("scene_manager.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
 
-pub const DisplayMethod = enum(u32) {
+pub const DisplayMode = enum(u32) {
     Windowed = 0,
     FullScreen = 1,
     Borderless = 2,
@@ -57,7 +57,7 @@ pub const Renderer = struct {
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
 
-    pub fn init(allocator: mem.Allocator, title: [:0]const u8, width: u32, height: u32, display_method: DisplayMethod, resolution_width: u32, resolution_height: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
+    pub fn init(allocator: mem.Allocator, title: [:0]const u8, width: u32, height: u32, display_mode: DisplayMode, resolution_width: u32, resolution_height: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
         const glfw_init = switch (builtin.os.tag) {
             .linux => glfw.init(.{ .platform = .wayland }),
             else => glfw.init(.{}),
@@ -80,25 +80,25 @@ pub const Renderer = struct {
 
         var monitor = glfw.Monitor.getPrimary();
         const video_mode = monitor.?.getVideoMode();
-        if (display_method == .BorderlessWindowed or display_method == .Windowed) {
+        if (display_mode == .BorderlessWindowed or display_mode == .Windowed) {
             const screen_width: c_int = @intCast(video_mode.?.getWidth());
             const screen_height: c_int = @intCast(video_mode.?.getHeight());
             hints.position_x = @divTrunc(screen_width - @as(c_int, @intCast(window_width)), 2);
             hints.position_y = @divTrunc(screen_height - @as(c_int, @intCast(window_height)), 2);
         }
-        if (display_method == .Borderless or display_method == .BorderlessWindowed) {
+        if (display_mode == .Borderless or display_mode == .BorderlessWindowed) {
             hints.decorated = false;
             hints.red_bits = @intCast(video_mode.?.getRedBits());
             hints.green_bits = @intCast(video_mode.?.getGreenBits());
             hints.blue_bits = @intCast(video_mode.?.getBlueBits());
             hints.refresh_rate = @intCast(video_mode.?.getRefreshRate());
         }
-        if (display_method == .Borderless or display_method == .FullScreen) {
+        if (display_mode == .Borderless or display_mode == .FullScreen) {
             window_width = video_mode.?.getWidth();
             window_height = video_mode.?.getHeight();
             hints.maximized = true;
         }
-        if (display_method == .FullScreen or display_method == .BorderlessWindowed or display_method == .Windowed) {
+        if (display_mode == .FullScreen or display_mode == .BorderlessWindowed or display_mode == .Windowed) {
             monitor = null;
         }
 
@@ -106,7 +106,7 @@ pub const Renderer = struct {
             return error.GLFWWindowCreateFailed;
         };
 
-        if (display_method == .BorderlessWindowed) {
+        if (display_mode == .BorderlessWindowed) {
             window.setAttrib(.decorated, false);
         }
 
@@ -334,7 +334,7 @@ pub const Renderer = struct {
     }
 
     pub fn renderScene(self: *Self, camera: *objects.Camera, scene: scene_manager.Scene) void {
-        const surfaces = scene.surfaces.items;
+        const surfaces = scene.surfaces.values();
         const surface_count = surfaces.len;
         const textures = self.texture_list.items;
 

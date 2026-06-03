@@ -2,7 +2,7 @@ local title = "real"
 local size = { x = 800, y = 600 }
 local fps = 120
 local resolution = { x = 480, y = 360 }
-local display_method = DisplayMethod.Windowed
+local display_mode = DisplayMode.Windowed
 local texture_atlas_size = 1024
 local texture_atlas_count = 1
 
@@ -12,7 +12,7 @@ local cam_pos = { x = 0, y = 0, z = 0 }
 local cam_rot = { x = 0, y = 0, z = 0 }
 local velocity = { x = 0, y = 0, z = 0 }
 
-chive.setup(title, size, display_method, resolution, texture_atlas_size, texture_atlas_count)
+chive.setup(title, size, display_mode, resolution, texture_atlas_size, texture_atlas_count)
 chive.setFps(fps)
 local scene_id = chive.createScene()
 chive.setCurrentScene(scene_id)
@@ -30,7 +30,6 @@ local last_mouse_pos = chive.getMousePos()
 
 function Update(delta)
     size = chive.getWindowSize()
-
     local mouse_pos = chive.getMousePos()
     local mouse_diff = { x = mouse_pos.x, y = mouse_pos.y }
     vec2.subtract(mouse_diff, last_mouse_pos)

@@ -104,8 +104,8 @@ RayResult[MAX_SURFACES] ray(vec3 direction) {
             vec3 uv_vec = camera.position + dist * direction - surface.position;
             float u = dot(uv_vec, rotated_right);
             float v = dot(uv_vec, rotated_up);
-            if (abs(u) <= surface.size.x && abs(v) <= surface.size.y && 
-            dist > 0.0 && dist < nearest && last_nearest < dist) {
+            if (abs(u) <= surface.size.x && abs(v) <= surface.size.y &&
+                    dist > 0.0 && dist < nearest && last_nearest < dist) {
                 nearest = dist;
                 uv = vec2(u, v);
                 surface_id = id;
@@ -125,10 +125,9 @@ void main() {
     vec2 screen = vec2(screen_width, screen_height);
     vec2 screen_coord = gl_FragCoord.xy - screen / 2.0;
     vec2 rotated_coord = vec2(
-        screen_coord.x * cos(-camera.rotation.z) - screen_coord.y * sin(-camera.rotation.z),
-        screen_coord.x * sin(-camera.rotation.z) + screen_coord.y * cos(-camera.rotation.z)
-    ) + screen / 2.0;
-
+            screen_coord.x * cos(-camera.rotation.z) - screen_coord.y * sin(-camera.rotation.z),
+            screen_coord.x * sin(-camera.rotation.z) + screen_coord.y * cos(-camera.rotation.z)
+        ) + screen / 2.0;
 
     const float scale_x = screen.x / float(resolution_width);
     const float scale_y = screen.y / float(resolution_height);
@@ -155,15 +154,15 @@ void main() {
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
             uv_coord = vec2(
-                1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / surface.size.x) * 0.5 + 0.5),
-                1.0 - mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / surface.size.y) * 0.5 + 0.5)
-            );
+                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / surface.size.x) * 0.5 + 0.5),
+                    1.0 - mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / surface.size.y) * 0.5 + 0.5)
+                );
             break;
             case TEXTURE_TYPE_TILE:
             uv_coord = vec2(
-                1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x),
-                1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y)
-            );
+                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x),
+                    1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y)
+                );
             break;
         }
 
@@ -171,7 +170,7 @@ void main() {
         if (tex.flip_v) uv_coord.y = 1.0 - uv_coord.y;
 
         vec4 tex_pixel = textureLod(texture_atlas, vec3(uv_coord.x, uv_coord.y, float(tex.atlas_id)), 0.0);
-        const float shade = clamp(1 / (0.3 * result.distance), 0.0, 1.0);
+        const float shade = clamp(1 / (0.3 * result.distance), 0.1, 1.0);
 
         tex_pixel *= tex.tint;
 

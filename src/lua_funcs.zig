@@ -44,9 +44,9 @@ pub fn update(lua: *zlua.Lua, delta_time: f32) !void {
     };
 }
 
-pub fn tick(lua: *zlua.Lua, delta_time: f32) !void {
-    _ = lua.getGlobal("Tick") catch unreachable;
-    lua.pushNumber(delta_time);
+pub fn fixedUpdate(lua: *zlua.Lua, fixed_delta_time: f32) !void {
+    _ = lua.getGlobal("FixedUpdate") catch unreachable;
+    lua.pushNumber(fixed_delta_time);
     lua.protectedCall(.{ .args = 1 }) catch {
         const err_msg = lua.toString(stack_top_idx) catch "unkown error";
         log.err("Lua Error: {s}", .{err_msg});

@@ -7,14 +7,14 @@
 ---@type TextureType
 TextureType = TextureType
 
----@class DisplayMethod
+---@class DisplayMode
 ---@field Windowed 0
 ---@field FullScreen 1
 ---@field Borderless 2
 ---@field BorderlessWindowed 3
 
----@type DisplayMethod
-DisplayMethod = DisplayMethod
+---@type DisplayMode
+DisplayMode = DisplayMode
 
 ---@class Key
 ---@field unknown -1
@@ -239,7 +239,7 @@ vec2 = vec2
 vec3 = vec3
 
 ---@class chive
----@field setup fun(title: string, size: Vec2, display_method: integer, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer)
+---@field setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer)
 ---@field setTitle fun(title: string)
 ---@field setWindowSize fun(size: Vec2)
 ---@field setMousePos fun(pos: Vec2)
@@ -270,9 +270,8 @@ vec3 = vec3
 ---@type chive
 chive = chive
 
----@param delta number
-function Tick(delta) end
+---@param fixed_delta number
+function FixedUpdate(fixed_delta) end
 
 ---@param delta number
 function Update(delta) end
-

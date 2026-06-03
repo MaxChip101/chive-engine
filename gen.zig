@@ -21,7 +21,7 @@ pub fn main() !void {
 
     const enums = .{
         .{ "TextureType", types.TextureType },
-        .{ "DisplayMethod", types.DisplayMethod },
+        .{ "DisplayMode", types.DisplayMode },
         .{ "Key", glfw.Key },
         .{ "MouseState", glfw.Window.InputModeCursor },
     };
@@ -104,7 +104,7 @@ pub fn main() !void {
 
     try writer.writeAll(
         \\---@class chive
-        \\---@field setup fun(title: string, size: Vec2, display_method: integer, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer)
+        \\---@field setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer)
         \\---@field setTitle fun(title: string)
         \\---@field setWindowSize fun(size: Vec2)
         \\---@field setMousePos fun(pos: Vec2)
@@ -139,12 +139,11 @@ pub fn main() !void {
         \\---@type chive
         \\chive = chive
         \\
-        \\---@param delta number
-        \\function Tick(delta) end
+        \\---@param fixed_delta number
+        \\function FixedUpdate(fixed_delta) end
         \\
         \\---@param delta number
         \\function Update(delta) end
-        \\
         \\
     );
 }

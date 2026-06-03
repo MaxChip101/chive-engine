@@ -52,11 +52,13 @@ const stack_top_idx = -1;
 var allocator: mem.Allocator = undefined;
 var renderer: render_manager.Renderer = undefined;
 var setup_called = false;
-var scenes: std.ArrayList(scene_manager.Scene) = undefined;
-var cameras: std.ArrayList(objects.Camera) = undefined;
+var next_scene_id: u32 = 0;
+var next_camera_id: u32 = 0;
+var scenes: std.AutoArrayHashMap(u32, scene_manager.Scene) = undefined;
+var cameras: std.AutoArrayHashMap(u32, objects.Camera) = undefined;
 
-var fps: i32 = 1;
-var fps_milli: i32 = 1000;
+var fps: i64 = 1;
+var fps_ms: i64 = 1000;
 var current_scene: u32 = 0;
 var current_camera: u32 = 0;
 
@@ -74,7 +76,7 @@ pub fn main() !void {
     defer cameras.deinit();
 
     defer {
-        for (scenes.items) |*scene| {
+        for (scenes.values()) |*scene| {
             scene.deinit();
         }
     }
@@ -88,7 +90,7 @@ pub fn main() !void {
 
     inline for (.{
         .{ "TextureType", objects.TextureType },
-        .{ "DisplayMethod", render_manager.DisplayMethod },
+        .{ "DisplayMode", render_manager.DisplayMode },
         .{ "Key", glfw.Key },
         .{ "MouseState", glfw.Window.InputModeCursor },
     }) |pair| {
@@ -148,19 +150,35 @@ pub fn main() !void {
 
     defer renderer.deinit();
 
-    var last_tick = time.milliTimestamp();
+    var last_time = time.milliTimestamp();
+
+    var accumulator: i64 = 0;
 
     while (!renderer.window.shouldClose()) {
-        const current_tick = time.milliTimestamp();
-        const delta_time: f32 = @as(f32, @floatFromInt(current_tick - last_tick)) / 1000.0;
-        try lua_funcs.tick(lua, delta_time);
+        const current_time = time.milliTimestamp();
+        const delta_time_ms = current_time - last_time;
+        const delta_time: f32 = @as(f32, @floatFromInt(delta_time_ms)) / 1000.0;
+        last_time = current_time;
+        accumulator += delta_time_ms;
 
-        if (current_tick - last_tick >= fps_milli) {
-            last_tick = current_tick;
-            renderer.renderScene(&cameras.items[current_camera], scenes.items[current_scene]);
-            try lua_funcs.update(lua, delta_time);
+        if (delta_time_ms >= fps_ms) {
+            try lua_funcs.fixedUpdate(lua, @as(f32, @floatFromInt(fps_ms)) / 1000.0);
+            accumulator -= fps_ms;
         }
 
+        try lua_funcs.update(lua, delta_time);
+
+        const scene = scenes.get(current_scene) orelse {
+            log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+            continue;
+        };
+
+        const camera = cameras.getPtr(current_camera) orelse {
+            log.err("Surface With ID: {d} Does Not Exist", .{current_camera});
+            continue;
+        };
+
+        renderer.renderScene(camera, scene);
         renderer.update();
     }
 }
@@ -168,21 +186,21 @@ pub fn main() !void {
 fn setup(lua: *zlua.Lua) i32 {
     const title = lua_funcs.pullString(lua, 1);
     const size = lua_funcs.pullVec2(lua, 2);
-    const display_method = lua_funcs.pullUInt(lua, 3);
+    const display_mode = lua_funcs.pullUInt(lua, 3);
     const resolution = lua_funcs.pullVec2(lua, 4);
     const texture_atlas_size = lua_funcs.pullUInt(lua, 5);
     const texture_atlas_count = lua_funcs.pullUInt(lua, 6);
 
     setup_called = true;
 
-    const display_method_enum: render_manager.DisplayMethod = @enumFromInt(display_method);
+    const display_mode_enum: render_manager.DisplayMode = @enumFromInt(display_mode);
 
     renderer = render_manager.Renderer.init(
         allocator,
         title,
         @as(u32, @intFromFloat(size.x)),
         @as(u32, @intFromFloat(size.y)),
-        display_method_enum,
+        display_mode_enum,
         @as(u32, @intFromFloat(resolution.x)),
         @as(u32, @intFromFloat(resolution.y)),
         texture_atlas_size,
@@ -226,7 +244,7 @@ fn setMousePos(lua: *zlua.Lua) i32 {
 
 fn setFps(lua: *zlua.Lua) i32 {
     fps = lua_funcs.pullInt(lua, 1);
-    fps_milli = @divTrunc(1000, fps);
+    fps_ms = @divTrunc(1000, fps);
     return 0;
 }
 
@@ -244,8 +262,8 @@ fn createScene(lua: *zlua.Lua) i32 {
         log.err("Out of Memory", .{});
         return 0;
     };
-    const scene_id = scenes.items.len;
-    scenes.append(scene) catch {
+    const scene_id = next_scene_id;
+    scenes.put(scene_id, scene) catch {
         log.err("Out of Memory", .{});
         return 0;
     };
@@ -359,7 +377,12 @@ fn createSurface(lua: *zlua.Lua) i32 {
         .texture_id = texture_id,
     };
 
-    const surface_id = scenes.items[current_scene].addSurface(surface) catch {
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface_id = scene.addSurface(surface) catch {
         log.err("Out of Memory", .{});
         return 0;
     };
@@ -372,8 +395,16 @@ fn setSurfacePosition(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const position = lua_funcs.pullVec3(lua, 2);
 
-    const scene: *scene_manager.Scene = &scenes.items[current_scene];
-    const surface: *objects.Surface = &scene.surfaces.items[surface_id];
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface = scene.surfaces.getPtr(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
     surface.*.position = position;
 
     return 0;
@@ -383,8 +414,16 @@ fn setSurfaceNormal(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const normal = lua_funcs.pullVec3(lua, 2);
 
-    const scene: *scene_manager.Scene = &scenes.items[current_scene];
-    const surface: *objects.Surface = &scene.surfaces.items[surface_id];
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface = scene.surfaces.getPtr(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
     surface.*.normal = normal;
 
     return 0;
@@ -394,8 +433,16 @@ fn setSurfaceRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullNumber(lua, 2);
 
-    const scene: *scene_manager.Scene = &scenes.items[current_scene];
-    const surface: *objects.Surface = &scene.surfaces.items[surface_id];
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface = scene.surfaces.getPtr(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
     surface.*.rotation = rotation;
 
     return 0;
@@ -405,8 +452,16 @@ fn setSurfaceSize(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const size = lua_funcs.pullVec2(lua, 2);
 
-    const scene: *scene_manager.Scene = &scenes.items[current_scene];
-    const surface: *objects.Surface = &scene.surfaces.items[surface_id];
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface = scene.surfaces.getPtr(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
     surface.*.size = size;
 
     return 0;
@@ -416,8 +471,16 @@ fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const texture_id = lua_funcs.pullUInt(lua, 2);
 
-    const scene: *scene_manager.Scene = &scenes.items[current_scene];
-    const surface: *objects.Surface = &scene.surfaces.items[surface_id];
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface = scene.surfaces.getPtr(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
     surface.*.texture_id = texture_id;
 
     return 0;
@@ -430,11 +493,12 @@ fn createCamera(lua: *zlua.Lua) i32 {
 
     const camera = objects.Camera.init(position, rotation, fov);
 
-    const camera_id = cameras.items.len;
-    cameras.append(camera) catch {
+    const camera_id = next_camera_id;
+    cameras.put(camera_id, camera) catch {
         log.err("Out of Memory", .{});
         return 1;
     };
+    next_camera_id += 1;
 
     lua.pushInteger(@intCast(camera_id));
     return 1;
@@ -444,7 +508,10 @@ fn setCameraPosition(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const position = lua_funcs.pullVec3(lua, 2);
 
-    const camera = &cameras.items[camera_id];
+    const camera = cameras.getPtr(camera_id) orelse {
+        log.err("Canera With ID: {d} Does Not Exist", .{camera_id});
+        return 0;
+    };
 
     camera.*.position = position;
 
@@ -455,7 +522,10 @@ fn setCameraRotation(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullVec3(lua, 2);
 
-    const camera = &cameras.items[camera_id];
+    const camera = cameras.getPtr(camera_id) orelse {
+        log.err("Canera With ID: {d} Does Not Exist", .{camera_id});
+        return 0;
+    };
 
     camera.setRotation(rotation);
     return 0;
@@ -465,7 +535,10 @@ fn setCameraRadRotation(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullVec3(lua, 2);
 
-    const camera = &cameras.items[camera_id];
+    const camera = cameras.getPtr(camera_id) orelse {
+        log.err("Canera With ID: {d} Does Not Exist", .{camera_id});
+        return 0;
+    };
 
     camera.*.rotation = rotation;
     return 0;
@@ -475,7 +548,10 @@ fn setCameraFov(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const fov = lua_funcs.pullNumber(lua, 2);
 
-    const camera = &cameras.items[camera_id];
+    const camera = cameras.getPtr(camera_id) orelse {
+        log.err("Canera With ID: {d} Does Not Exist", .{camera_id});
+        return 0;
+    };
 
     camera.setFov(fov);
     return 0;
