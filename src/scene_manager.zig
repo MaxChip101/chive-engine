@@ -20,8 +20,8 @@ pub const Scene = struct {
         self.surfaces.deinit();
     }
 
-    pub fn removeSurface(self: Self, surface_id: u32) bool {
-        return self.surfaces.swapRemove(surface_id);
+    pub fn removeSurface(self: *Self, surface_id: u32) bool {
+        return self.*.surfaces.swapRemove(surface_id);
     }
 
     pub fn addSurface(self: *Self, surface: objects.Surface) !u32 {

@@ -246,8 +246,17 @@ vec3 = vec3
 ---@field setFps fun(fps: integer)
 ---@field getWindowSize fun(): Vec2
 ---@field createScene fun(): integer
+---@field deleteScene fun(scene_id: integer): boolean
 ---@field setCurrentScene fun(scene_id: integer)
 ---@field createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
+---@field setTextureUVMin fun(texture_id: integer, uv_min: Vec2)
+---@field setTextureUVMax fun(texture_id: integer, uv_max: Vec2)
+---@field setTextureSize fun(texture_id: integer, size: Vec2)
+---@field setTextureTint fun(texture_id: integer, tint: Color)
+---@field setTextureUFlip fun(texture_id: integer, flip_u: boolean)
+---@field setTextureVFlip fun(texture_id: integer, flip_v: boolean)
+---@field setTextureAtlasID fun(texture_id: integer, atlas_id: integer)
+---@field removeTexture fun(texture_id: integer): boolean
 ---@field loadTextureAtlas fun(atlas_path: string): integer
 ---@field createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
 ---@field setSurfacePosition fun(surface_id: integer, position: Vec3)
@@ -255,11 +264,13 @@ vec3 = vec3
 ---@field setSurfaceRotation fun(surface_id: integer, rotation: number)
 ---@field setSurfaceSize fun(surface_id: integer, size: Vec2)
 ---@field setSurfaceTextureID fun(surface_id: integer, texture_id: integer)
+---@field removeSurface fun(surface_id: integer): boolean
 ---@field createCamera fun(position: Vec3, rotation: Vec3, fov: number): integer
 ---@field setCameraPosition fun(camera_id: integer, position: Vec3)
 ---@field setCameraRotation fun(camera_id: integer, rotation: Vec3)
 ---@field setCameraRadRotation fun(camera_id: integer, rad_rotation: Vec3)
 ---@field setCameraFov fun(camera_id: integer, fov: number)
+---@field deletetCamera fun(camera_id: integer): boolean
 ---@field setCurrentCamera fun(camera_id: integer)
 ---@field getKeyDown fun(key: integer): boolean
 ---@field getKeyUp fun(key: integer): boolean

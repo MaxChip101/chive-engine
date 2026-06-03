@@ -24,6 +24,7 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "getWindowSize", .func = zlua.wrap(getWindowSize) },
     .{ .name = "setTitle", .func = zlua.wrap(setTitle) },
     .{ .name = "createScene", .func = zlua.wrap(createScene) },
+    .{ .name = "deleteScene", .func = zlua.wrap(deleteScene) },
     .{ .name = "setCurrentScene", .func = zlua.wrap(setCurrentScene) },
     .{ .name = "createSurface", .func = zlua.wrap(createSurface) },
     .{ .name = "setSurfacePosition", .func = zlua.wrap(setSurfacePosition) },
@@ -31,13 +32,23 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "setSurfaceRotation", .func = zlua.wrap(setSurfaceRotation) },
     .{ .name = "setSurfaceSize", .func = zlua.wrap(setSurfaceSize) },
     .{ .name = "setSurfaceTextureID", .func = zlua.wrap(setSurfaceTextureID) },
+    .{ .name = "removeSurface", .func = zlua.wrap(removeSurface) },
     .{ .name = "createTexture", .func = zlua.wrap(createTexture) },
+    .{ .name = "removeTexture", .func = zlua.wrap(removeTexture) },
+    .{ .name = "setTextureUVMin", .func = zlua.wrap(setTextureUVMin) },
+    .{ .name = "setTextureUVMax", .func = zlua.wrap(setTextureUVMax) },
+    .{ .name = "setTextureSize", .func = zlua.wrap(setTextureSize) },
+    .{ .name = "setTextureTint", .func = zlua.wrap(setTextureTint) },
+    .{ .name = "setTextureUFlip", .func = zlua.wrap(setTextureUFlip) },
+    .{ .name = "setTextureVFlip", .func = zlua.wrap(setTextureVFlip) },
+    .{ .name = "setTextureAtlasID", .func = zlua.wrap(setTextureAtlasID) },
     .{ .name = "loadTextureAtlas", .func = zlua.wrap(loadTextureAtlas) },
     .{ .name = "createCamera", .func = zlua.wrap(createCamera) },
     .{ .name = "setCameraPosition", .func = zlua.wrap(setCameraPosition) },
     .{ .name = "setCameraRotation", .func = zlua.wrap(setCameraRotation) },
     .{ .name = "setCameraRadRotation", .func = zlua.wrap(setCameraRadRotation) },
     .{ .name = "setCameraFov", .func = zlua.wrap(setCameraFov) },
+    .{ .name = "deleteCamera", .func = zlua.wrap(deleteCamera) },
     .{ .name = "setCurrentCamera", .func = zlua.wrap(setCurrentCamera) },
     .{ .name = "setMouseState", .func = zlua.wrap(setMouseState) },
     .{ .name = "getMousePos", .func = zlua.wrap(getMousePos) },
@@ -267,8 +278,18 @@ fn createScene(lua: *zlua.Lua) i32 {
         log.err("Out of Memory", .{});
         return 0;
     };
+    next_scene_id += 1;
 
     lua.pushInteger(@intCast(scene_id));
+    return 1;
+}
+
+fn deleteScene(lua: *zlua.Lua) i32 {
+    const scene_id = lua_funcs.pullUInt(lua, 1);
+    const successful = scenes.swapRemove(scene_id);
+
+    lua.pushBoolean(successful);
+
     return 1;
 }
 
@@ -312,6 +333,172 @@ fn createTexture(lua: *zlua.Lua) i32 {
     };
 
     lua.pushInteger(@intCast(texture_id));
+    return 1;
+}
+
+fn setTextureUVMin(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const uv_min = lua_funcs.pullVec2(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.uv_min = uv_min;
+
+    return 0;
+}
+
+fn setTextureUVMax(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const uv_max = lua_funcs.pullVec2(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.uv_max = uv_max;
+
+    return 0;
+}
+
+fn setTextureSize(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const size = lua_funcs.pullVec2(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.tex_size = size;
+
+    return 0;
+}
+
+fn setTextureTint(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const tint = lua_funcs.pullColor(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.tint = tint;
+
+    return 0;
+}
+
+fn setTextureUFlip(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const u_flip = lua_funcs.pullBool(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.flip_u = u_flip;
+
+    return 0;
+}
+
+fn setTextureVFlip(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const v_flip = lua_funcs.pullBool(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.flip_v = v_flip;
+
+    return 0;
+}
+
+fn setTextureType(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const texture_type = lua_funcs.pullUInt(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.tex_type = @enumFromInt(texture_type);
+
+    return 0;
+}
+
+fn setTextureAtlasID(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const atlas_id = lua_funcs.pullUInt(lua, 2);
+
+    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
+        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
+        return 0;
+    };
+
+    texture.*.altas_id = atlas_id;
+
+    return 0;
+}
+
+fn removeTexture(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const texture_id = lua_funcs.pullUInt(lua, 1);
+    const successful = renderer.removeTexture(texture_id);
+
+    lua.pushBoolean(successful);
+
     return 1;
 }
 
@@ -486,6 +673,21 @@ fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
     return 0;
 }
 
+fn removeSurface(lua: *zlua.Lua) i32 {
+    const surface_id = lua_funcs.pullUInt(lua, 1);
+
+    const scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const successful = scene.removeSurface(surface_id);
+
+    lua.pushBoolean(successful);
+
+    return 1;
+}
+
 fn createCamera(lua: *zlua.Lua) i32 {
     const position = lua_funcs.pullVec3(lua, 1);
     const rotation = lua_funcs.pullVec3(lua, 2);
@@ -557,6 +759,15 @@ fn setCameraFov(lua: *zlua.Lua) i32 {
     return 0;
 }
 
+fn deleteCamera(lua: *zlua.Lua) i32 {
+    const camera_id = lua_funcs.pullUInt(lua, 1);
+    const successful = cameras.swapRemove(camera_id);
+
+    lua.pushBoolean(successful);
+
+    return 1;
+}
+
 fn setCurrentCamera(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     current_camera = camera_id;
@@ -625,8 +836,11 @@ fn getMousePos(lua: *zlua.Lua) i32 {
         log.err("Setup Was Not Called", .{});
         return 0;
     }
-    const x = @as(f32, @floatCast(renderer.window.getCursorPos().xpos));
-    const y = @as(f32, @floatCast(renderer.window.getCursorPos().ypos));
+
+    const pos = renderer.window.getCursorPos();
+
+    const x = @as(f32, (@floatCast(pos.xpos)));
+    const y = @as(f32, @floatCast(pos.ypos));
 
     lua_funcs.pushVec2(lua, .{ .x = x, .y = y });
     return 1;

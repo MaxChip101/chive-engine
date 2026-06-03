@@ -36,7 +36,8 @@ pub const Renderer = struct {
     resolution_width: u32,
     resolution_height: u32,
 
-    texture_list: std.ArrayList(objects.Texture),
+    last_texture_id: u32,
+    texture_objects: std.AutoArrayHashMap(u32, objects.Texture),
 
     texture_atlas: gl.Texture,
     texture_atlas_size: usize,
@@ -232,7 +233,7 @@ pub const Renderer = struct {
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest_mipmap_linear);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
-        const texture_list: std.ArrayList(objects.Texture) = .init(allocator);
+        const texture_objects: std.AutoArrayHashMap(u32, objects.Texture) = .init(allocator);
 
         return .{
             .allocator = allocator,
@@ -246,7 +247,8 @@ pub const Renderer = struct {
             .texture_atlas_size = texture_atlas_size,
             .texture_atlas_count = texture_atlas_count,
             .texture_atlas_index = 0,
-            .texture_list = texture_list,
+            .last_texture_id = 0,
+            .texture_objects = texture_objects,
             .VAO = VAO,
             .VBO = VBO,
             .surfaceSSBO = surfaceSSBO,
@@ -273,7 +275,7 @@ pub const Renderer = struct {
         gl.deleteBuffer(self.textureSSBO);
         gl.deleteBuffer(self.cameraSSBO);
         gl.deleteTexture(self.texture_atlas);
-        self.texture_list.deinit();
+        self.texture_objects.deinit();
         self.window.destroy();
         glfw.terminate();
     }
@@ -320,9 +322,14 @@ pub const Renderer = struct {
     }
 
     pub fn addTexture(self: *Self, texture: objects.Texture) !u32 {
-        const pos = self.texture_list.items.len;
-        try self.texture_list.append(texture);
-        return @as(u32, @intCast(pos));
+        const id = self.last_texture_id;
+        try self.texture_objects.put(id, texture);
+        self.*.last_texture_id += 1;
+        return id;
+    }
+
+    pub fn removeTexture(self: *Self, texture_id: u32) bool {
+        return self.*.texture_objects.swapRemove(texture_id);
     }
 
     fn renderUpdate(self: *Self, camera: *objects.Camera) void {
@@ -336,7 +343,7 @@ pub const Renderer = struct {
     pub fn renderScene(self: *Self, camera: *objects.Camera, scene: scene_manager.Scene) void {
         const surfaces = scene.surfaces.values();
         const surface_count = surfaces.len;
-        const textures = self.texture_list.items;
+        const textures = self.texture_objects.values();
 
         self.renderUpdate(camera);
 
