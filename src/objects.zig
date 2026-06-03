@@ -12,11 +12,12 @@ pub const Texture = extern struct {
     uv_min: vectors.Vec2,
     uv_max: vectors.Vec2,
     tex_type: TextureType,
-    altas_id: u32,
-    flip_u: bool,
-    flip_v: bool,
+    atlas_id: u32,
+    flip_u: u32,
+    flip_v: u32,
     tint: vectors.Color,
     tex_size: vectors.Vec2,
+    _pad: [2]f32 = .{ 0, 0 },
 };
 
 pub const Surface = extern struct {
@@ -57,6 +58,8 @@ pub const Camera = extern struct {
     focal_length: f32,
     // direction??
 
+    var stored_width: u32 = 0;
+
     const Self = @This();
 
     pub fn init(position: vectors.Vec3, rotation: vectors.Vec3, fov: f32) Self {
@@ -71,6 +74,12 @@ pub const Camera = extern struct {
 
     pub fn setFov(self: *Self, fov: f32) void {
         self.*.fov = math.degreesToRadians(fov);
+        self.*.updateFocalLength(stored_width);
+    }
+
+    pub fn setRadFov(self: *Self, rad_fov: f32) void {
+        self.*.fov = rad_fov;
+        self.*.updateFocalLength(stored_width);
     }
 
     pub fn setRotation(self: *Self, rotation: vectors.Vec3) void {
@@ -86,6 +95,7 @@ pub const Camera = extern struct {
     }
 
     pub fn updateFocalLength(self: *Self, width: u32) void {
+        stored_width = width;
         self.*.focal_length = @as(f32, @floatFromInt(width)) / (2 * math.tan(self.fov / 2.0));
     }
 };

@@ -301,6 +301,7 @@ pub const Renderer = struct {
             const x = @divTrunc(screen_width - @as(c_int, @intCast(window_width)), 2);
             const y = @divTrunc(screen_height - @as(c_int, @intCast(window_height)), 2);
             self.window.setPos(.{ .x = x, .y = y });
+            //self.window.setSize(.{ .width = self.width, .height = self.height });
         }
         if (display_mode == .Borderless or display_mode == .BorderlessWindowed) {
             self.window.setAttrib(.decorated, false);
@@ -356,7 +357,11 @@ pub const Renderer = struct {
             .unsigned_byte,
             data_c.ptr,
         );
+        gl.generateMipmap(.@"2d_array");
+        gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest);
+        gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
         const pos = self.texture_atlas_index;
+        std.log.info("{d}", .{pos});
         self.*.texture_atlas_index += 1;
         return @as(u32, @intCast(pos));
     }

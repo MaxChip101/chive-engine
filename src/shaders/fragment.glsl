@@ -12,8 +12,8 @@ struct Texture {
     vec2 uv_max;
     uint type;
     uint atlas_id;
-    bool flip_u;
-    bool flip_v;
+    uint flip_u; // bool
+    uint flip_v; // bool
     vec4 tint;
     vec2 size;
 };
@@ -155,19 +155,19 @@ void main() {
             case TEXTURE_TYPE_STRETCH:
             uv_coord = vec2(
                     1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / surface.size.x) * 0.5 + 0.5),
-                    1.0 - mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / surface.size.y) * 0.5 + 0.5)
+                    mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / surface.size.y) * 0.5 + 0.5)
                 );
             break;
             case TEXTURE_TYPE_TILE:
             uv_coord = vec2(
                     1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x),
-                    1.0 - mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y)
+                    mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y)
                 );
             break;
         }
 
-        if (tex.flip_u) uv_coord.x = 1.0 - uv_coord.x;
-        if (tex.flip_v) uv_coord.y = 1.0 - uv_coord.y;
+        if (tex.flip_u != 0) uv_coord.x = 1.0 - uv_coord.x;
+        if (tex.flip_v != 0) uv_coord.y = 1.0 - uv_coord.y;
 
         vec4 tex_pixel = textureLod(texture_atlas, vec3(uv_coord.x, uv_coord.y, float(tex.atlas_id)), 0.0);
         const float shade = clamp(1 / (0.3 * result.distance), 0.1, 1.0);

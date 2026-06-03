@@ -437,12 +437,12 @@ fn createTexture(lua: *zlua.Lua) i32 {
     const texture_type_enum: objects.TextureType = @enumFromInt(texture_type);
 
     const texture: objects.Texture = .{
-        .altas_id = atlas_id,
+        .atlas_id = atlas_id,
         .uv_min = uv_min,
         .uv_max = uv_max,
         .tex_type = texture_type_enum,
-        .flip_u = flip_u,
-        .flip_v = flip_v,
+        .flip_u = @intFromBool(flip_u),
+        .flip_v = @intFromBool(flip_v),
         .tint = tint,
         .tex_size = size,
     };
@@ -541,7 +541,7 @@ fn getTextureUFlip(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    lua.pushBoolean(texture.flip_u);
+    lua.pushBoolean(texture.flip_u != 0);
 
     return 1;
 }
@@ -559,7 +559,7 @@ fn getTextureVFlip(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    lua.pushBoolean(texture.flip_v);
+    lua.pushBoolean(texture.flip_v != 0);
 
     return 1;
 }
@@ -595,7 +595,7 @@ fn getTextureAtlasID(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    lua.pushInteger(@intCast(texture.altas_id));
+    lua.pushInteger(@intCast(texture.atlas_id));
 
     return 1;
 }
@@ -690,7 +690,7 @@ fn setTextureUFlip(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    texture.*.flip_u = u_flip;
+    texture.*.flip_u = @intFromBool(u_flip);
 
     return 0;
 }
@@ -709,7 +709,7 @@ fn setTextureVFlip(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    texture.*.flip_v = v_flip;
+    texture.*.flip_v = @intFromBool(v_flip);
 
     return 0;
 }
@@ -747,7 +747,7 @@ fn setTextureAtlasID(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    texture.*.altas_id = atlas_id;
+    texture.*.atlas_id = atlas_id;
 
     return 0;
 }
@@ -1255,7 +1255,7 @@ fn setCameraRadFov(lua: *zlua.Lua) i32 {
         return 0;
     };
 
-    camera.*.fov = fov;
+    camera.setRadFov(fov);
     return 0;
 }
 
