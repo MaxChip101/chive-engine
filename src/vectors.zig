@@ -48,7 +48,15 @@ pub const Vec2 = extern struct {
         return self.x * vec.y - self.y * vec.x;
     }
 
-    pub fn unit(self: *Self) Vec2 {
+    pub fn normalize(self: *Self) void {
+        const _length = self.length();
+        if (_length == 0) return .zero;
+
+        self.*.x = self.x / _length;
+        self.*.y = self.y / _length;
+    }
+
+    pub fn unit(self: Self) Vec2 {
         const _length = self.length();
         if (_length == 0) return .zero;
 
@@ -124,6 +132,15 @@ pub const Vec3 = extern struct {
             .y = self.z * vec.x - self.x * vec.z,
             .z = self.x * vec.y - self.y * vec.x,
         };
+    }
+
+    pub fn normalize(self: *Self) void {
+        const _length = self.length();
+        if (_length == 0) return .zero;
+
+        self.*.x = self.x / _length;
+        self.*.y = self.y / _length;
+        self.*.z = self.z / _length;
     }
 
     pub fn unit(self: Self) Vec3 {

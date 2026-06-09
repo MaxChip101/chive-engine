@@ -1,5 +1,6 @@
 const std = @import("std");
 const heap = std.heap;
+const zig_ast = std.zig.Ast;
 const glfw = @import("glfw");
 const types = @import("types");
 const tools = @import("tools");
@@ -11,7 +12,6 @@ pub fn main() !void {
         if (deinit_status == .leak) @panic("TEST FAIL");
     }
     const allocator = gpa.allocator();
-    _ = allocator;
 
     const file = try std.fs.cwd().createFile("types/chive.d.lua", .{});
     defer file.close();
@@ -22,6 +22,7 @@ pub fn main() !void {
     const enums = .{
         .{ "TextureType", types.TextureType },
         .{ "DisplayMode", types.DisplayMode },
+        .{ "BillboardMode", types.BillboardMode },
         .{ "Key", glfw.Key },
         .{ "MouseState", glfw.Window.InputModeCursor },
     };
@@ -73,6 +74,7 @@ pub fn main() !void {
         \\---@field lengthSquared fun(a: Vec2): number
         \\---@field dot fun(a: Vec2, b: Vec2): number
         \\---@field cross fun(a: Vec2, b: Vec2): number
+        \\---@field normalize fun(a: Vec2)
         \\---@field unit fun(a: Vec2): Vec2
         \\
         \\---@type vec2
@@ -94,6 +96,7 @@ pub fn main() !void {
         \\---@field lengthSquared fun(a: Vec3): number
         \\---@field dot fun(a: Vec3, b: Vec3): number
         \\---@field cross fun(a: Vec3, b: Vec3): Vec3
+        \\---@field normalize fun(a: Vec3)
         \\---@field unit fun(a: Vec3): Vec3
         \\
         \\---@type vec3
@@ -106,85 +109,23 @@ pub fn main() !void {
     //.{ .name = "setTextureVFlip", .func = zlua.wrap(setTextureVFlip) },
     //.{ .name = "setTextureAtlasID", .func = zlua.wrap(setTextureAtlasID) },
 
-    try writer.writeAll(
-        \\---@class chive
-        \\---@field setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: integer, texture_atlas_count: integer)
-        \\---@field setTitle fun(title: string)
-        \\---@field setDisplayMode fun(display_mode: integer)
-        \\---@field getDisplayMode fun(): integer
-        \\---@field setResizable fun(resizable: boolean)
-        \\---@field setWindowSize fun(size: Vec2)
-        \\---@field setMousePos fun(pos: Vec2)
-        \\---@field setFps fun(fps: integer)
-        \\---@field getFps fun(): integer
-        \\---@field getWindowSize fun(): Vec2
-        \\---@field getWindowPos fun(): Vec2
-        \\---@field setWindowPos fun(position: Vec2)
-        \\---@field createScene fun(): integer
-        \\---@field getSceneIDs fun(): integer[]
-        \\---@field deleteScene fun(scene_id: integer): boolean
-        \\---@field setCurrentScene fun(scene_id: integer)
-        \\---@field getCurrentScene fun(): integer
-        \\---@field createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
-        \\---@field getTextureIDs fun(): integer[]
-        \\---@field getTextureUVMin fun(texture_id: integer): Vec2
-        \\---@field getTextureUVMax fun(texture_id: integer): Vec2
-        \\---@field getTextureSize fun(texture_id: integer): Vec2
-        \\---@field getTextureTint fun(texture_id: integer): Color
-        \\---@field getTextureUFlip fun(texture_id: integer): boolean
-        \\---@field getTextureVFlip fun(texture_id: integer): boolean
-        \\---@field getTextureAtlasID fun(texture_id: integer): integer
-        \\---@field setTextureUVMin fun(texture_id: integer, uv_min: Vec2)
-        \\---@field setTextureUVMax fun(texture_id: integer, uv_max: Vec2)
-        \\---@field setTextureSize fun(texture_id: integer, size: Vec2)
-        \\---@field setTextureTint fun(texture_id: integer, tint: Color)
-        \\---@field setTextureUFlip fun(texture_id: integer, flip_u: boolean)
-        \\---@field setTextureVFlip fun(texture_id: integer, flip_v: boolean)
-        \\---@field setTextureAtlasID fun(texture_id: integer, atlas_id: integer)
-        \\---@field removeTexture fun(texture_id: integer): boolean
-        \\---@field loadTextureAtlas fun(atlas_path: string): integer
-        \\---@field createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
-        \\---@field getSurfacePosition fun(surface_id: integer): Vec3
-        \\---@field getSurfaceNormal fun(surface_id: integer): Vec3
-        \\---@field getSurfaceRotation fun(surface_id: integer): number
-        \\---@field getSurfaceRadRotation fun(surface_id: integer): number
-        \\---@field getSurfaceSize fun(surface_id: integer): Vec2
-        \\---@field getSurfaceTextureID fun(surface_id: integer): integer
-        \\---@field setSurfacePosition fun(surface_id: integer, position: Vec3)
-        \\---@field setSurfaceNormal fun(surface_id: integer, normal: Vec3)
-        \\---@field setSurfaceRotation fun(surface_id: integer, rotation: number)
-        \\---@field setSurfaceRadRotation fun(surface_id: integer, rad_rotation: number)
-        \\---@field setSurfaceSize fun(surface_id: integer, size: Vec2)
-        \\---@field setSurfaceTextureID fun(surface_id: integer, texture_id: integer)
-        \\---@field removeSurface fun(surface_id: integer): boolean
-        \\---@field createCamera fun(position: Vec3, rotation: Vec3, fov: number): integer
-        \\---@field getCameraIDs fun(): integer[]
-        \\---@field getCameraPosition fun(camera_id: integer): Vec3
-        \\---@field getCameraRotation fun(camera_id: integer): Vec3
-        \\---@field getCameraRadRotation fun(camera_id: integer): Vec3
-        \\---@field getCameraRadFov fun(camera_id: integer): number
-        \\---@field getCameraFov fun(camera_id: integer): number
-        \\---@field setCameraPosition fun(camera_id: integer, position: Vec3)
-        \\---@field setCameraRotation fun(camera_id: integer, rotation: Vec3)
-        \\---@field setCameraRadRotation fun(camera_id: integer, rad_rotation: Vec3)
-        \\---@field setCameraRadFov fun(camera_id: integer, rad_fov: number)
-        \\---@field setCameraFov fun(camera_id: integer, fov: number)
-        \\---@field deleteCamera fun(camera_id: integer): boolean
-        \\---@field setCurrentCamera fun(camera_id: integer)
-        \\---@field getCurrentCamera fun(): integer
-        \\---@field getKeyDown fun(key: integer): boolean
-        \\---@field getKeyUp fun(key: integer): boolean
-        \\---@field getKeyPressed fun(key: integer): boolean
-        \\---@field getKeyReleased fun(key: integer): boolean
-        \\---@field getKeyRepeat fun(key: integer): boolean
-        \\---@field setMouseState fun(mouse_state: integer)
-        \\---@field getMouseState fun(): integer
-        \\---@field getMousePos fun(): Vec2
-        \\
-        \\
-    );
+    const source = @embedFile("src/main.zig");
+
+    var ast = try zig_ast.parse(allocator, source, .zig);
+    defer ast.deinit(allocator);
+
+    try writer.writeAll("---@class chive\n");
+
+    for (ast.tokens.items(.tag), 0..) |tag, i| {
+        if (tag == .doc_comment) {
+            const slice = ast.tokenSlice(@intCast(i));
+
+            try writer.print("---@field {s}\n", .{slice[9..]});
+        }
+    }
 
     try writer.writeAll(
+        \\
         \\---@type chive
         \\chive = chive
         \\

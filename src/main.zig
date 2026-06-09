@@ -16,6 +16,7 @@ const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
 const lua_funcs = @import("lua_funcs.zig");
 
+// make a system to make it clear that a funciton has been added to this
 const chive_funcs = [_]zlua.FnReg{
     .{ .name = "setup", .func = zlua.wrap(setup) },
     .{ .name = "setFps", .func = zlua.wrap(setFps) },
@@ -39,9 +40,11 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "getSurfacePosition", .func = zlua.wrap(getSurfacePosition) },
     .{ .name = "getSurfaceNormal", .func = zlua.wrap(getSurfaceNormal) },
     .{ .name = "getSurfaceRotation", .func = zlua.wrap(getSurfaceRotation) },
+    .{ .name = "getSurfaceBackFaceCulled", .func = zlua.wrap(getSurfaceBackFaceCulled) },
     .{ .name = "getSurfaceRadRotation", .func = zlua.wrap(getSurfaceRadRotation) },
     .{ .name = "getSurfaceSize", .func = zlua.wrap(getSurfaceSize) },
     .{ .name = "getSurfaceTextureID", .func = zlua.wrap(getSurfaceTextureID) },
+    .{ .name = "setSurfaceBackFaceCulled", .func = zlua.wrap(setSurfaceBackFaceCulled) },
     .{ .name = "setSurfacePosition", .func = zlua.wrap(setSurfacePosition) },
     .{ .name = "setSurfaceNormal", .func = zlua.wrap(setSurfaceNormal) },
     .{ .name = "setSurfaceRotation", .func = zlua.wrap(setSurfaceRotation) },
@@ -92,6 +95,26 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "getKeyReleased", .func = zlua.wrap(getKeyReleased) },
     .{ .name = "getKeyRepeat", .func = zlua.wrap(getKeyRepeat) },
 };
+
+// check if chive functions have been registered
+comptime {
+    @setEvalBranchQuota(100000);
+    const decls = @typeInfo(@This()).@"struct".decls;
+    var missing: []const u8 = "";
+    for (decls) |decl| {
+        const T = @TypeOf(@field(@This(), decl.name));
+        if (T == fn (*zlua.Lua) i32) {
+            var found = false;
+            for (chive_funcs) |reg| {
+                if (std.mem.eql(u8, reg.name, decl.name)) found = true;
+            }
+            if (!found) missing = missing ++ "\n  " ++ decl.name;
+        }
+    }
+    if (missing.len > 0) {
+        @compileError("chive funcs have not been registered:" ++ missing);
+    }
+}
 
 const push_idx = -2;
 const stack_top_idx = -1;
@@ -233,7 +256,8 @@ pub fn main() !void {
     }
 }
 
-fn setup(lua: *zlua.Lua) i32 {
+/// lua: setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: Vec2, max_texture_atlases: integer)
+pub fn setup(lua: *zlua.Lua) i32 {
     if (setup_called) {
         log.warn("Setup Was Already Called", .{});
         return 0;
@@ -242,8 +266,8 @@ fn setup(lua: *zlua.Lua) i32 {
     const size = lua_funcs.pullVec2(lua, 2);
     const display_mode = lua_funcs.pullUInt(lua, 3);
     const resolution = lua_funcs.pullVec2(lua, 4);
-    const texture_atlas_size = lua_funcs.pullUInt(lua, 5);
-    const texture_atlas_count = lua_funcs.pullUInt(lua, 6);
+    const texture_atlas_size = lua_funcs.pullVec2(lua, 5);
+    const max_texture_atlases = lua_funcs.pullUInt(lua, 6);
 
     setup_called = true;
 
@@ -257,8 +281,9 @@ fn setup(lua: *zlua.Lua) i32 {
         display_mode_enum,
         @as(u32, @intFromFloat(resolution.x)),
         @as(u32, @intFromFloat(resolution.y)),
-        texture_atlas_size,
-        texture_atlas_count,
+        @as(usize, @intFromFloat(texture_atlas_size.x)),
+        @as(usize, @intFromFloat(texture_atlas_size.y)),
+        max_texture_atlases,
     ) catch |err| {
         log.err("Error Creating Renderer: {!}", .{err});
         return 0;
@@ -266,7 +291,8 @@ fn setup(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setDisplayMode(lua: *zlua.Lua) i32 {
+/// lua: setDisplayMode fun(display_mode: integer)
+pub fn setDisplayMode(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -276,7 +302,8 @@ fn setDisplayMode(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setResizable(lua: *zlua.Lua) i32 {
+/// lua: setResizable fun(resizable: boolean)
+pub fn setResizable(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -286,7 +313,8 @@ fn setResizable(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTitle(lua: *zlua.Lua) i32 {
+/// lua: setTitle fun(title: string)
+pub fn setTitle(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -296,7 +324,8 @@ fn setTitle(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setWindowSize(lua: *zlua.Lua) i32 {
+/// lua: setWindowSize fun(size: Vec2)
+pub fn setWindowSize(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -306,7 +335,8 @@ fn setWindowSize(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setMousePos(lua: *zlua.Lua) i32 {
+/// lua: setMousePos fun(pos: Vec2)
+pub fn setMousePos(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -316,13 +346,15 @@ fn setMousePos(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setFps(lua: *zlua.Lua) i32 {
+/// lua: setFps fun(fps: integer)
+pub fn setFps(lua: *zlua.Lua) i32 {
     fps = lua_funcs.pullInt(lua, 1);
     fps_ms = @divTrunc(1000, fps);
     return 0;
 }
 
-fn getWindowSize(lua: *zlua.Lua) i32 {
+/// lua: getWindowSize fun(): Vec2
+pub fn getWindowSize(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -331,12 +363,14 @@ fn getWindowSize(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getFps(lua: *zlua.Lua) i32 {
+/// lua: getFps fun(): integer
+pub fn getFps(lua: *zlua.Lua) i32 {
     lua.pushInteger(fps);
     return 1;
 }
 
-fn getDisplayMode(lua: *zlua.Lua) i32 {
+/// lua: getDisplayMode fun(): integer
+pub fn getDisplayMode(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -345,7 +379,8 @@ fn getDisplayMode(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getWindowPos(lua: *zlua.Lua) i32 {
+/// lua: getWindowSize fun(): Vec2
+pub fn getWindowPos(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -359,7 +394,8 @@ fn getWindowPos(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setWindowPos(lua: *zlua.Lua) i32 {
+/// lua: setWindowPos fun(position: Vec2)
+pub fn setWindowPos(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -370,7 +406,8 @@ fn setWindowPos(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn createScene(lua: *zlua.Lua) i32 {
+/// lua: createScene fun(): integer
+pub fn createScene(lua: *zlua.Lua) i32 {
     const scene = scene_manager.Scene.init(allocator) catch {
         log.err("Out of Memory", .{});
         return 0;
@@ -386,7 +423,8 @@ fn createScene(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSceneIDs(lua: *zlua.Lua) i32 {
+/// lua: getSceneIDs fun(): integer[]
+pub fn getSceneIDs(lua: *zlua.Lua) i32 {
     const scene_ids = scenes.keys();
 
     var i: i32 = 0;
@@ -399,7 +437,8 @@ fn getSceneIDs(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn deleteScene(lua: *zlua.Lua) i32 {
+/// lua: deleteScene fun(scene_id: integer): boolean
+pub fn deleteScene(lua: *zlua.Lua) i32 {
     const scene_id = lua_funcs.pullUInt(lua, 1);
     const successful = scenes.swapRemove(scene_id);
 
@@ -408,18 +447,21 @@ fn deleteScene(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setCurrentScene(lua: *zlua.Lua) i32 {
+/// lua: setCurrentScene fun(scene_id: integer)
+pub fn setCurrentScene(lua: *zlua.Lua) i32 {
     const scene_id = lua_funcs.pullUInt(lua, 1);
     current_scene = scene_id;
     return 0;
 }
 
-fn getCurrentScene(lua: *zlua.Lua) i32 {
+/// lua: getCurrentScene fun(): integer
+pub fn getCurrentScene(lua: *zlua.Lua) i32 {
     lua.pushInteger(current_scene);
     return 1;
 }
 
-fn createTexture(lua: *zlua.Lua) i32 {
+/// lua: createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
+pub fn createTexture(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -456,7 +498,8 @@ fn createTexture(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureUVMin(lua: *zlua.Lua) i32 {
+/// lua: getTextureUVMin fun(texture_id: integer): Vec2
+pub fn getTextureUVMin(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -474,7 +517,8 @@ fn getTextureUVMin(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureUVMax(lua: *zlua.Lua) i32 {
+/// lua: getTextureUVMax fun(texture_id: integer): Vec2
+pub fn getTextureUVMax(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -492,7 +536,8 @@ fn getTextureUVMax(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureSize(lua: *zlua.Lua) i32 {
+/// lua: getTextureSize fun(texture_id: integer): Vec2
+pub fn getTextureSize(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -510,7 +555,8 @@ fn getTextureSize(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureTint(lua: *zlua.Lua) i32 {
+/// lua: getTextureTint fun(texture_id: integer): Color
+pub fn getTextureTint(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -528,7 +574,8 @@ fn getTextureTint(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureUFlip(lua: *zlua.Lua) i32 {
+/// lua: getTextureUFlip fun(texture_id: integer): boolean
+pub fn getTextureUFlip(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -546,7 +593,8 @@ fn getTextureUFlip(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureVFlip(lua: *zlua.Lua) i32 {
+/// lua: getTextureVFlip fun(texture_id: integer): boolean
+pub fn getTextureVFlip(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -564,7 +612,8 @@ fn getTextureVFlip(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureType(lua: *zlua.Lua) i32 {
+/// lua: getTextureType fun(texture_id: integer): integer
+pub fn getTextureType(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -582,7 +631,8 @@ fn getTextureType(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getTextureAtlasID(lua: *zlua.Lua) i32 {
+/// lua: getTextureAtlasID fun(texture_id: integer): integer
+pub fn getTextureAtlasID(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -600,7 +650,8 @@ fn getTextureAtlasID(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setTextureUVMin(lua: *zlua.Lua) i32 {
+/// lua: setTextureUVMin fun(texture_id: integer, uv_min: Vec2)
+pub fn setTextureUVMin(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -619,7 +670,8 @@ fn setTextureUVMin(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureUVMax(lua: *zlua.Lua) i32 {
+/// lua: setTextureUVMax fun(texture_id: integer, uv_max: Vec2)
+pub fn setTextureUVMax(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -638,7 +690,8 @@ fn setTextureUVMax(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureSize(lua: *zlua.Lua) i32 {
+/// lua: setTextureSize fun(texture_id: integer, size: Vec2)
+pub fn setTextureSize(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -657,7 +710,8 @@ fn setTextureSize(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureTint(lua: *zlua.Lua) i32 {
+/// lua: setTextureTint fun(texture_id: integer, tint: Color)
+pub fn setTextureTint(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -676,7 +730,8 @@ fn setTextureTint(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureUFlip(lua: *zlua.Lua) i32 {
+/// lua: setTextureUFlip fun(texture_id: integer, flip_u: boolean)
+pub fn setTextureUFlip(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -695,7 +750,8 @@ fn setTextureUFlip(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureVFlip(lua: *zlua.Lua) i32 {
+/// lua: setTextureVFlip fun(texture_id: integer, flip_v: boolean)
+pub fn setTextureVFlip(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -714,7 +770,8 @@ fn setTextureVFlip(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureType(lua: *zlua.Lua) i32 {
+/// lua: setTextureType fun(texture_id: integer, texture_type: integer)
+pub fn setTextureType(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -733,7 +790,8 @@ fn setTextureType(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setTextureAtlasID(lua: *zlua.Lua) i32 {
+/// lua: setTextureAtlasID fun(texture_id: integer, atlas_id: integer)
+pub fn setTextureAtlasID(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -752,7 +810,8 @@ fn setTextureAtlasID(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn removeTexture(lua: *zlua.Lua) i32 {
+/// lua: removeTexture fun(texture_id: integer): boolean
+pub fn removeTexture(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -766,7 +825,8 @@ fn removeTexture(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn loadTextureAtlas(lua: *zlua.Lua) i32 {
+/// lua: loadTextureAtlas fun(atlas_path: string): integer
+pub fn loadTextureAtlas(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -812,8 +872,8 @@ fn loadTextureAtlas(lua: *zlua.Lua) i32 {
     lua.pushInteger(@intCast(atlas_id));
     return 1;
 }
-
-fn getSurfaceIDs(lua: *zlua.Lua) i32 {
+/// lua: getSurfaceIDs fun(): integer[]
+pub fn getSurfaceIDs(lua: *zlua.Lua) i32 {
     const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
         log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
         return 0;
@@ -831,20 +891,16 @@ fn getSurfaceIDs(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn createSurface(lua: *zlua.Lua) i32 {
+/// lua: createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
+pub fn createSurface(lua: *zlua.Lua) i32 {
     const position = lua_funcs.pullVec3(lua, 1);
     const normal = lua_funcs.pullVec3(lua, 2);
     const rotation = lua_funcs.pullNumber(lua, 3);
     const size = lua_funcs.pullVec2(lua, 4);
-    const texture_id = lua_funcs.pullUInt(lua, 5);
+    const cull_backface = lua_funcs.pullBool(lua, 5);
+    const texture_id = lua_funcs.pullUInt(lua, 6);
 
-    const surface: objects.Surface = .{
-        .position = position,
-        .normal = normal,
-        .rotation = rotation,
-        .size = size,
-        .texture_id = texture_id,
-    };
+    const surface: objects.Surface = .init(position, normal, rotation, size, cull_backface, texture_id);
 
     const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
         log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
@@ -860,7 +916,8 @@ fn createSurface(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSurfacePosition(lua: *zlua.Lua) i32 {
+/// lua: getSurfacePosition fun(surface_id: integer): Vec3
+pub fn getSurfacePosition(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
@@ -878,7 +935,8 @@ fn getSurfacePosition(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSurfaceNormal(lua: *zlua.Lua) i32 {
+/// lua: getSurfaceNormal fun(surface_id: integer): Vec3
+pub fn getSurfaceNormal(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
@@ -896,7 +954,12 @@ fn getSurfaceNormal(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSurfaceSize(lua: *zlua.Lua) i32 {
+// mouse shit
+// implement billboards
+// other stuff
+
+/// lua: getSurfaceSize fun(surface_id: integer): Vec2
+pub fn getSurfaceSize(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
@@ -914,7 +977,8 @@ fn getSurfaceSize(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSurfaceRadRotation(lua: *zlua.Lua) i32 {
+/// lua: getSurfaceRadRotation fun(surface_id: integer): number
+pub fn getSurfaceRadRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
@@ -932,7 +996,8 @@ fn getSurfaceRadRotation(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSurfaceRotation(lua: *zlua.Lua) i32 {
+/// lua: getSurfaceRotation fun(surface_id: integer): number
+pub fn getSurfaceRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
@@ -950,7 +1015,8 @@ fn getSurfaceRotation(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getSurfaceTextureID(lua: *zlua.Lua) i32 {
+/// lua: getSurfaceTextureID fun(surface_id: integer): integer
+pub fn getSurfaceTextureID(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
@@ -968,7 +1034,46 @@ fn getSurfaceTextureID(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setSurfacePosition(lua: *zlua.Lua) i32 {
+/// lua: getSurfaceBackFaceCulled fun(surface_id: integer): boolean
+pub fn getSurfaceBackFaceCulled(lua: *zlua.Lua) i32 {
+    const surface_id = lua_funcs.pullUInt(lua, 1);
+
+    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
+    lua.pushInteger(surface.cull_backface);
+
+    return 1;
+}
+
+/// lua: setSurfaceBackFaceCulled fun(surface_id: integer, backface_culled: boolean)
+pub fn setSurfaceBackFaceCulled(lua: *zlua.Lua) i32 {
+    const surface_id = lua_funcs.pullUInt(lua, 1);
+    const cull_backface = lua_funcs.pullBool(lua, 2);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
+        return 0;
+    };
+
+    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+        log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
+        return 0;
+    };
+
+    surface.*.cull_backface = @intFromBool(cull_backface);
+    return 0;
+}
+
+/// lua: setSurfacePosition fun(surface_id: integer, position: Vec3)
+pub fn setSurfacePosition(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const position = lua_funcs.pullVec3(lua, 2);
 
@@ -987,7 +1092,8 @@ fn setSurfacePosition(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setSurfaceNormal(lua: *zlua.Lua) i32 {
+/// lua: setSurfaceNormal fun(surface_id: integer, normal: Vec3)
+pub fn setSurfaceNormal(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const normal = lua_funcs.pullVec3(lua, 2);
 
@@ -1006,7 +1112,8 @@ fn setSurfaceNormal(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setSurfaceRotation(lua: *zlua.Lua) i32 {
+/// lua: setSurfaceRotation fun(surface_id: integer, rotation: number)
+pub fn setSurfaceRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullNumber(lua, 2);
 
@@ -1025,7 +1132,8 @@ fn setSurfaceRotation(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setSurfaceRadRotation(lua: *zlua.Lua) i32 {
+/// lua: setSurfaceRadRotation fun(surface_id: integer, rad_rotation: number)
+pub fn setSurfaceRadRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullNumber(lua, 2);
 
@@ -1044,7 +1152,8 @@ fn setSurfaceRadRotation(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setSurfaceSize(lua: *zlua.Lua) i32 {
+/// lua: setSurfaceSize fun(surface_id: integer, size: Vec2)
+pub fn setSurfaceSize(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const size = lua_funcs.pullVec2(lua, 2);
 
@@ -1063,7 +1172,8 @@ fn setSurfaceSize(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
+/// lua: setSurfaceTextureID fun(surface_id: integer, texture_id: integer)
+pub fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const texture_id = lua_funcs.pullUInt(lua, 2);
 
@@ -1082,7 +1192,8 @@ fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn removeSurface(lua: *zlua.Lua) i32 {
+/// lua: removeSurface fun(surface_id: integer): boolean
+pub fn removeSurface(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
     const scene = scenes.getPtr(current_scene) orelse {
@@ -1097,7 +1208,8 @@ fn removeSurface(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn createCamera(lua: *zlua.Lua) i32 {
+/// lua: createCamera fun(position: Vec3, rotation: Vec3, fov: number): integer
+pub fn createCamera(lua: *zlua.Lua) i32 {
     const position = lua_funcs.pullVec3(lua, 1);
     const rotation = lua_funcs.pullVec3(lua, 2);
     const fov = lua_funcs.pullNumber(lua, 3);
@@ -1115,7 +1227,8 @@ fn createCamera(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getCameraIDs(lua: *zlua.Lua) i32 {
+/// lua: getCameraIDs fun(): integer[]
+pub fn getCameraIDs(lua: *zlua.Lua) i32 {
     const camera_ids = cameras.keys();
 
     var i: i32 = 0;
@@ -1128,7 +1241,8 @@ fn getCameraIDs(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getCameraPosition(lua: *zlua.Lua) i32 {
+/// lua: getCameraPosition fun(camera_id: integer): Vec3
+pub fn getCameraPosition(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
 
     const camera: objects.Camera = cameras.get(camera_id) orelse {
@@ -1141,7 +1255,8 @@ fn getCameraPosition(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getCameraRadRotation(lua: *zlua.Lua) i32 {
+/// lua: getCameraRadRotation fun(camera_id: integer): Vec3
+pub fn getCameraRadRotation(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
 
     const camera: objects.Camera = cameras.get(camera_id) orelse {
@@ -1154,7 +1269,8 @@ fn getCameraRadRotation(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getCameraRotation(lua: *zlua.Lua) i32 {
+/// lua: getCameraRotation fun(camera_id: integer): Vec3
+pub fn getCameraRotation(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
 
     const camera: objects.Camera = cameras.get(camera_id) orelse {
@@ -1167,7 +1283,8 @@ fn getCameraRotation(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getCameraFov(lua: *zlua.Lua) i32 {
+/// lua: getCameraFov fun(camera_id: integer): number
+pub fn getCameraFov(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
 
     const camera: objects.Camera = cameras.get(camera_id) orelse {
@@ -1180,7 +1297,8 @@ fn getCameraFov(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getCameraRadFov(lua: *zlua.Lua) i32 {
+/// lua: getCameraRadFov fun(camera_id: integer): number
+pub fn getCameraRadFov(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
 
     const camera: objects.Camera = cameras.get(camera_id) orelse {
@@ -1193,7 +1311,8 @@ fn getCameraRadFov(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setCameraPosition(lua: *zlua.Lua) i32 {
+/// lua: setCameraPosition fun(camera_id: integer, position: Vec3)
+pub fn setCameraPosition(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const position = lua_funcs.pullVec3(lua, 2);
 
@@ -1207,7 +1326,8 @@ fn setCameraPosition(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setCameraRotation(lua: *zlua.Lua) i32 {
+/// lua: setCameraRotation fun(camera_id: integer, rotation: Vec3)
+pub fn setCameraRotation(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullVec3(lua, 2);
 
@@ -1220,7 +1340,8 @@ fn setCameraRotation(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setCameraRadRotation(lua: *zlua.Lua) i32 {
+/// lua: setCameraRadRotation fun(camera_id: integer, rad_rotation: Vec3)
+pub fn setCameraRadRotation(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullVec3(lua, 2);
 
@@ -1233,7 +1354,8 @@ fn setCameraRadRotation(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setCameraFov(lua: *zlua.Lua) i32 {
+/// lua: setCameraFov fun(camera_id: integer, fov: number)
+pub fn setCameraFov(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const fov = lua_funcs.pullNumber(lua, 2);
 
@@ -1246,7 +1368,8 @@ fn setCameraFov(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn setCameraRadFov(lua: *zlua.Lua) i32 {
+/// lua: setCameraRadFov fun(camera_id: integer, rad_fov: number)
+pub fn setCameraRadFov(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const fov = lua_funcs.pullNumber(lua, 2);
 
@@ -1259,7 +1382,8 @@ fn setCameraRadFov(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn deleteCamera(lua: *zlua.Lua) i32 {
+/// lua: deleteCamera fun(camera_id: integer): boolean
+pub fn deleteCamera(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     const successful = cameras.swapRemove(camera_id);
 
@@ -1268,18 +1392,21 @@ fn deleteCamera(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setCurrentCamera(lua: *zlua.Lua) i32 {
+/// lua: setCurrentCamera fun(camera_id: integer)
+pub fn setCurrentCamera(lua: *zlua.Lua) i32 {
     const camera_id = lua_funcs.pullUInt(lua, 1);
     current_camera = camera_id;
     return 0;
 }
 
-fn getCurrentCamera(lua: *zlua.Lua) i32 {
+/// lua: getCurrentCamera fun(): integer
+pub fn getCurrentCamera(lua: *zlua.Lua) i32 {
     lua.pushInteger(current_camera);
     return 1;
 }
 
-fn getKeyDown(lua: *zlua.Lua) i32 {
+/// lua: getKeyDown fun(key: integer): boolean
+pub fn getKeyDown(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1298,7 +1425,8 @@ fn getKeyDown(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getKeyUp(lua: *zlua.Lua) i32 {
+/// lua: getKeyUp fun(key: integer): boolean
+pub fn getKeyUp(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1316,7 +1444,8 @@ fn getKeyUp(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getKeyPressed(lua: *zlua.Lua) i32 {
+/// lua: getKeyPressed fun(key: integer): boolean
+pub fn getKeyPressed(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1338,7 +1467,8 @@ fn getKeyPressed(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getKeyReleased(lua: *zlua.Lua) i32 {
+/// lua: getKeyReleased fun(key: integer): boolean
+pub fn getKeyReleased(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1359,7 +1489,8 @@ fn getKeyReleased(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getKeyRepeat(lua: *zlua.Lua) i32 {
+/// lua: getKeyRepeat fun(key: integer): boolean
+pub fn getKeyRepeat(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1374,7 +1505,8 @@ fn getKeyRepeat(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn setMouseState(lua: *zlua.Lua) i32 {
+/// lua: setMouseState fun(mouse_state: integer)
+pub fn setMouseState(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1386,7 +1518,8 @@ fn setMouseState(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-fn getMouseState(lua: *zlua.Lua) i32 {
+/// lua: getMouseState fun(): integer
+pub fn getMouseState(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1396,7 +1529,8 @@ fn getMouseState(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-fn getMousePos(lua: *zlua.Lua) i32 {
+/// lua: getMousePos fun(): Vec2
+pub fn getMousePos(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -1410,3 +1544,7 @@ fn getMousePos(lua: *zlua.Lua) i32 {
     lua_funcs.pushVec2(lua, .{ .x = x, .y = y });
     return 1;
 }
+
+// pub fn getMouseButton(lua: *zlua.Lua) i32 {
+//     renderer.window.getMouseButton(.)
+// }

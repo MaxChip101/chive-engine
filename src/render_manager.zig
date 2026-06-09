@@ -30,6 +30,7 @@ pub const Renderer = struct {
     shaderProgram: gl.Program,
     VAO: gl.VertexArray,
     VBO: gl.Buffer,
+    billboardSSBO: gl.Buffer,
     surfaceSSBO: gl.Buffer,
     textureSSBO: gl.Buffer,
     cameraSSBO: gl.Buffer,
@@ -42,12 +43,14 @@ pub const Renderer = struct {
     texture_objects: std.AutoArrayHashMap(u32, objects.Texture),
 
     texture_atlas: gl.Texture,
-    texture_atlas_size: usize,
-    texture_atlas_count: usize,
+    texture_atlas_width: usize,
+    texture_atlas_height: usize,
+    max_texture_atlases: usize,
     texture_atlas_index: usize,
 
     width_loc: ?u32,
     height_loc: ?u32,
+    billboard_count_loc: ?u32,
     surface_count_loc: ?u32,
     resolution_width_loc: ?u32,
     resolution_height_loc: ?u32,
@@ -60,7 +63,7 @@ pub const Renderer = struct {
     const vertexShaderSource = @embedFile("shaders/vertex.glsl");
     const fragmentShaderSource = @embedFile("shaders/fragment.glsl");
 
-    pub fn init(allocator: mem.Allocator, title: [:0]const u8, width: u32, height: u32, display_mode: DisplayMode, resolution_width: u32, resolution_height: u32, texture_atlas_size: usize, texture_atlas_count: usize) !Self {
+    pub fn init(allocator: mem.Allocator, title: [:0]const u8, width: u32, height: u32, display_mode: DisplayMode, resolution_width: u32, resolution_height: u32, texture_atlas_width: usize, texture_atlas_height: usize, max_texture_atlases: usize) !Self {
         const glfw_init = switch (builtin.os.tag) {
             .linux => glfw.init(.{ .platform = .wayland }),
             else => glfw.init(.{}),
@@ -172,6 +175,7 @@ pub const Renderer = struct {
         const width_loc = gl.getUniformLocation(shaderProgram, "screen_width");
         const height_loc = gl.getUniformLocation(shaderProgram, "screen_height");
         const surface_count_loc = gl.getUniformLocation(shaderProgram, "surface_count");
+        const billboard_count_loc = gl.getUniformLocation(shaderProgram, "surface_count");
         const resolution_width_loc = gl.getUniformLocation(shaderProgram, "resolution_width");
         const resolution_height_loc = gl.getUniformLocation(shaderProgram, "resolution_height");
         const texture_atlas_loc = gl.getUniformLocation(shaderProgram, "texture_atlas");
@@ -190,6 +194,7 @@ pub const Renderer = struct {
         const VAO = gl.genVertexArray();
 
         const surfaceSSBO = gl.genBuffer();
+        const billboardSSBO = gl.genBuffer();
         const cameraSSBO = gl.genBuffer();
         const textureSSBO = gl.genBuffer();
 
@@ -210,6 +215,10 @@ pub const Renderer = struct {
         gl.bufferData(.shader_storage_buffer, objects.Surface, &[_]objects.Surface{}, .dynamic_draw);
         gl.bindBufferBase(.shader_storage_buffer, 2, surfaceSSBO);
 
+        gl.bindBuffer(billboardSSBO, .shader_storage_buffer);
+        gl.bufferData(.shader_storage_buffer, objects.Billboard, &[_]objects.Billboard{}, .dynamic_draw);
+        gl.bindBufferBase(.shader_storage_buffer, 3, billboardSSBO);
+
         gl.bindVertexArray(VAO);
         gl.bindBuffer(VBO, .array_buffer);
 
@@ -226,9 +235,9 @@ pub const Renderer = struct {
             .@"2d_array",
             0,
             .rgba8,
-            texture_atlas_size,
-            texture_atlas_size,
-            texture_atlas_count,
+            texture_atlas_width,
+            texture_atlas_height,
+            max_texture_atlases,
             .rgba,
             .unsigned_byte,
             null,
@@ -249,20 +258,23 @@ pub const Renderer = struct {
             .shaderProgram = shaderProgram,
             .display_mode = display_mode,
             .texture_atlas = texture_atlas,
-            .texture_atlas_size = texture_atlas_size,
-            .texture_atlas_count = texture_atlas_count,
+            .texture_atlas_width = texture_atlas_width,
+            .texture_atlas_height = texture_atlas_height,
+            .max_texture_atlases = max_texture_atlases,
             .texture_atlas_index = 0,
             .last_texture_id = 0,
             .texture_objects = texture_objects,
             .VAO = VAO,
             .VBO = VBO,
             .surfaceSSBO = surfaceSSBO,
+            .billboardSSBO = billboardSSBO,
             .textureSSBO = textureSSBO,
             .cameraSSBO = cameraSSBO,
             .resolution_width = resolution_width,
             .resolution_height = resolution_height,
             .width_loc = width_loc,
             .height_loc = height_loc,
+            .billboard_count_loc = billboard_count_loc,
             .surface_count_loc = surface_count_loc,
             .texture_atlas_loc = texture_atlas_loc,
             .resolution_width_loc = resolution_width_loc,
@@ -338,7 +350,7 @@ pub const Renderer = struct {
     // }
 
     pub fn loadTextureAtlas(self: *Self, data: []const u8) !u32 {
-        if (self.texture_atlas_index >= self.texture_atlas_count) return error.OutOfTextureAtlasBuffers;
+        if (self.texture_atlas_index >= self.max_texture_atlases) return error.OutOfTextureAtlasBuffers;
         //if (data.len != self.texture_atlas_size * self.texture_atlas_size) return error.IncorrectTextureAtlasSize; fix
         const data_c = try self.allocator.dupeZ(u8, data);
         defer self.allocator.free(data_c);
@@ -350,8 +362,8 @@ pub const Renderer = struct {
             0,
             0,
             self.texture_atlas_index,
-            self.texture_atlas_size,
-            self.texture_atlas_size,
+            self.texture_atlas_width,
+            self.texture_atlas_height,
             1,
             .rgba,
             .unsigned_byte,

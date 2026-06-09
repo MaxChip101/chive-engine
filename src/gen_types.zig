@@ -7,3 +7,4 @@ pub const TextureType = objects.TextureType;
 pub const Vec2 = vectors.Vec2;
 pub const Vec3 = vectors.Vec3;
 pub const Color = vectors.Color;
+pub const BillboardMode = objects.BillboardMode;
