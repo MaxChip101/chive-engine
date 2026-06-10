@@ -32,10 +32,12 @@ pub const Billboard = extern struct {
     size: vectors.Vec2,
     texture_id: u32,
     mode: BillboardMode,
+    object_id: u32,
+    _pad: [3]f32 = .{ 0.0, 0.0, 0.0 },
 
     const Self = @This();
 
-    pub fn init(position: vectors.Vec3, rotation: f32, size: vectors.Vec2, mode: BillboardMode, texture_id: u32) Self {
+    pub fn init(position: vectors.Vec3, rotation: f32, size: vectors.Vec2, mode: BillboardMode, texture_id: u32, object_id: u32) Self {
         const rad_rotation = math.degreesToRadians(rotation);
 
         return .{
@@ -44,6 +46,7 @@ pub const Billboard = extern struct {
             .mode = mode,
             .texture_id = texture_id,
             .size = size,
+            .object_id = object_id,
         };
     }
 
@@ -63,11 +66,11 @@ pub const Surface = extern struct {
     texture_id: u32,
     size: vectors.Vec2,
     cull_backface: u32, // bool
-    _pad_0: [2]f32 = .{ 0.0, 0.0 },
+    object_id: u32,
     right: vectors.Vec3,
-    _pad_1: f32 = 0,
+    _pad_0: f32 = 0,
     up: vectors.Vec3,
-    _pad_2: f32 = 0,
+    _pad_1: f32 = 0,
 
     const Self = @This();
 
@@ -112,11 +115,11 @@ pub const Camera = extern struct {
     rotation: vectors.Vec3,
     focal_length: f32,
     //forward: vectors.Vec3,
-    _pad_1: f32 = 0,
+    object_id: u32,
     //right: vectors.Vec3,
-    _pad_2: f32 = 0,
+    _pad_0: f32 = 0,
     //up: vectors.Vec3,
-    _pad_3: f32 = 0,
+    _pad_1: f32 = 0,
 
     var stored_width: u32 = 0;
 
@@ -171,4 +174,16 @@ pub const Camera = extern struct {
         stored_width = width;
         self.*.focal_length = @as(f32, @floatFromInt(width)) / (2 * math.tan(self.fov / 2.0));
     }
+};
+
+// implement objects and colliders fully
+
+// only deal with on the cpu
+pub const Object = struct {
+    position: vectors.Vec3,
+
+    surfaces: std.ArrayList(u32),
+    billboards: std.ArrayList(u32),
+    cameras: std.ArrayList(u32),
+    // colliders, etc
 };

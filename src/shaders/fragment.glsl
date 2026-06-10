@@ -7,6 +7,10 @@ const vec4 background = vec4(0, 0, 0, 0);
 const uint TEXTURE_TYPE_STRETCH = 0;
 const uint TEXTURE_TYPE_TILE = 1;
 
+const uint BILLBOARD_MODE_FULL = 0;
+const uint BILLBOARD_MODE_AXIS_X = 1;
+const uint BILLBOARD_MODE_AXIS_Y = 1;
+
 struct Texture {
     vec2 uv_min;
     vec2 uv_max;
@@ -24,6 +28,20 @@ struct Surface {
     vec3 normal;
     uint texture_id;
     vec2 size;
+    uint cull_backface;
+    float _pad0[2];
+    vec3 right;
+    float _pad1;
+    vec3 up;
+    float _pad2;
+};
+
+struct Billboard {
+    vec3 position;
+    float rotation;
+    vec2 size;
+    uint texture_id;
+    uint billboard_mode;
 };
 
 struct RayResult {
@@ -49,6 +67,10 @@ layout(std430, binding = 1) readonly buffer TextureBuffer {
 
 layout(std430, binding = 2) readonly buffer SurfaceBuffer {
     Surface surfaces[];
+};
+
+layout(std430, binding = 3) readonly buffer BillboardBuffer {
+    Billboard billboards[];
 };
 
 uniform sampler2DArray texture_atlas;

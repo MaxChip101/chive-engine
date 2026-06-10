@@ -3,6 +3,7 @@ const mem = std.mem;
 const objects = @import("objects.zig");
 
 pub const Scene = struct {
+    objects: std.AutoArrayHashMap(u32, objects.Object),
     surfaces: std.AutoArrayHashMap(u32, objects.Surface),
     billboards: std.AutoArrayHashMap(u32, objects.Billboard),
 
