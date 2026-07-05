@@ -22,8 +22,8 @@ pub fn main() !void {
     const enums = .{
         .{ "TextureType", types.TextureType },
         .{ "DisplayMode", types.DisplayMode },
-        .{ "BillboardMode", types.BillboardMode },
         .{ "Key", glfw.Key },
+        .{ "MouseButton", glfw.MouseButton },
         .{ "MouseState", glfw.Window.InputModeCursor },
     };
 
@@ -66,10 +66,14 @@ pub fn main() !void {
         try writer.print("---@field {s} Vec2\n", .{decls.name});
     }
     try writer.writeAll(
-        \\---@field add fun(a: Vec2, b: Vec2))
-        \\---@field subtract fun(a: Vec2, b: Vec2)
-        \\---@field multiply fun(a: Vec2, scalar: number)
-        \\---@field divide fun(a: Vec2, scalar: number)
+        \\---@field add fun(a: Vec2, b: Vec2): Vec2
+        \\---@field subtract fun(a: Vec2, b: Vec2): Vec2
+        \\---@field multiply fun(a: Vec2, scalar: number): Vec2
+        \\---@field divide fun(a: Vec2, scalar: number): Vec2
+        \\---@field addAssign fun(a: Vec2, b: Vec2)
+        \\---@field subtractAssign fun(a: Vec2, b: Vec2)
+        \\---@field multiplyAssign fun(a: Vec2, scalar: number)
+        \\---@field divideAssign fun(a: Vec2, scalar: number)
         \\---@field length fun(a: Vec2): number
         \\---@field lengthSquared fun(a: Vec2): number
         \\---@field dot fun(a: Vec2, b: Vec2): number
@@ -88,10 +92,14 @@ pub fn main() !void {
         try writer.print("---@field {s} Vec3\n", .{decls.name});
     }
     try writer.writeAll(
-        \\---@field add fun(a: Vec3, b: Vec3)
-        \\---@field subtract fun(a: Vec3, b: Vec3)
-        \\---@field multiply fun(a: Vec3, scalar: number)
-        \\---@field divide fun(a: Vec3, scalar: number)
+        \\---@field add fun(a: Vec3, b: Vec3): Vec3
+        \\---@field subtract fun(a: Vec3, b: Vec3): Vec3
+        \\---@field multiply fun(a: Vec3, scalar: number): Vec3
+        \\---@field divide fun(a: Vec3, scalar: number): Vec3
+        \\---@field addAssign fun(a: Vec3, b: Vec3)
+        \\---@field subtractAssign fun(a: Vec3, b: Vec3)
+        \\---@field multiplyAssign fun(a: Vec3, scalar: number)
+        \\---@field divideAssign fun(a: Vec3, scalar: number)
         \\---@field length fun(a: Vec3): number
         \\---@field lengthSquared fun(a: Vec3): number
         \\---@field dot fun(a: Vec3, b: Vec3): number
@@ -104,10 +112,6 @@ pub fn main() !void {
         \\
         \\
     );
-
-    //.{ .name = "setTextureUFlip", .func = zlua.wrap(setTextureUFlip) },
-    //.{ .name = "setTextureVFlip", .func = zlua.wrap(setTextureVFlip) },
-    //.{ .name = "setTextureAtlasID", .func = zlua.wrap(setTextureAtlasID) },
 
     const source = @embedFile("src/main.zig");
 

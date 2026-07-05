@@ -16,7 +16,10 @@ const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
 const lua_funcs = @import("lua_funcs.zig");
 
-// make a system to make it clear that a funciton has been added to this
+// figure out how to render objects with prefabs
+// do i need to retire prefabs entirely and just use a unique object system
+// make shader render objects (with surfaces and billboards with proper layering)
+
 const chive_funcs = [_]zlua.FnReg{
     .{ .name = "setup", .func = zlua.wrap(setup) },
     .{ .name = "setFps", .func = zlua.wrap(setFps) },
@@ -35,6 +38,45 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "deleteScene", .func = zlua.wrap(deleteScene) },
     .{ .name = "setCurrentScene", .func = zlua.wrap(setCurrentScene) },
     .{ .name = "getCurrentScene", .func = zlua.wrap(getCurrentScene) },
+    .{ .name = "createPrefab", .func = zlua.wrap(createPrefab) },
+    .{ .name = "getPrefabIDs", .func = zlua.wrap(getPrefabIDs) },
+    .{ .name = "getPrefabSurfaceStart", .func = zlua.wrap(getPrefabSurfaceStart) },
+    .{ .name = "getPrefabSurfaceLength", .func = zlua.wrap(getPrefabSurfaceLength) },
+    .{ .name = "getPrefabBillboardStart", .func = zlua.wrap(getPrefabBillboardStart) },
+    .{ .name = "getPrefabBillboardLength", .func = zlua.wrap(getPrefabBillboardLength) },
+    .{ .name = "setPrefabSurfaceStart", .func = zlua.wrap(setPrefabSurfaceStart) },
+    .{ .name = "setPrefabSurfaceLength", .func = zlua.wrap(setPrefabSurfaceLength) },
+    .{ .name = "setPrefabBillboardStart", .func = zlua.wrap(setPrefabBillboardStart) },
+    .{ .name = "setPrefabBillboardLength", .func = zlua.wrap(setPrefabBillboardLength) },
+    .{ .name = "deletePrefab", .func = zlua.wrap(deletePrefab) },
+    .{ .name = "createObject", .func = zlua.wrap(createObject) },
+    .{ .name = "getObjectIDs", .func = zlua.wrap(getObjectIDs) },
+    .{ .name = "getObjectPosition", .func = zlua.wrap(getObjectPosition) },
+    .{ .name = "getObjectRotation", .func = zlua.wrap(getObjectRotation) },
+    .{ .name = "getObjectRadRotation", .func = zlua.wrap(getObjectRadRotation) },
+    .{ .name = "getObjectScale", .func = zlua.wrap(getObjectScale) },
+    .{ .name = "getObjectPrefabID", .func = zlua.wrap(getObjectPrefabID) },
+    .{ .name = "setObjectPosition", .func = zlua.wrap(setObjectPosition) },
+    .{ .name = "setObjectRotation", .func = zlua.wrap(setObjectRotation) },
+    .{ .name = "setObjectRadRotation", .func = zlua.wrap(setObjectRadRotation) },
+    .{ .name = "setObjectScale", .func = zlua.wrap(setObjectScale) },
+    .{ .name = "setObjectPrefabID", .func = zlua.wrap(setObjectPrefabID) },
+    .{ .name = "deleteObject", .func = zlua.wrap(deleteObject) },
+    .{ .name = "createBillboard", .func = zlua.wrap(createBillboard) },
+    .{ .name = "getBillboardIDs", .func = zlua.wrap(getBillboardIDs) },
+    .{ .name = "getBillboardPosition", .func = zlua.wrap(getBillboardPosition) },
+    .{ .name = "getBillboardLockAxis", .func = zlua.wrap(getBillboardLockAxis) },
+    .{ .name = "getBillboardRotation", .func = zlua.wrap(getBillboardRotation) },
+    .{ .name = "getBillboardRadRotation", .func = zlua.wrap(getBillboardRadRotation) },
+    .{ .name = "getBillboardSize", .func = zlua.wrap(getBillboardSize) },
+    .{ .name = "getBillboardTextureID", .func = zlua.wrap(getBillboardTextureID) },
+    .{ .name = "setBillboardPosition", .func = zlua.wrap(setBillboardPosition) },
+    .{ .name = "setBillboardLockAxis", .func = zlua.wrap(setBillboardLockAxis) },
+    .{ .name = "setBillboardRotation", .func = zlua.wrap(setBillboardRotation) },
+    .{ .name = "setBillboardRadRotation", .func = zlua.wrap(setBillboardRadRotation) },
+    .{ .name = "setBillboardSize", .func = zlua.wrap(setBillboardSize) },
+    .{ .name = "setBillboardTextureID", .func = zlua.wrap(setBillboardTextureID) },
+    .{ .name = "deleteBillboard", .func = zlua.wrap(deleteBillboard) },
     .{ .name = "createSurface", .func = zlua.wrap(createSurface) },
     .{ .name = "getSurfaceIDs", .func = zlua.wrap(getSurfaceIDs) },
     .{ .name = "getSurfacePosition", .func = zlua.wrap(getSurfacePosition) },
@@ -51,26 +93,22 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "setSurfaceRadRotation", .func = zlua.wrap(setSurfaceRadRotation) },
     .{ .name = "setSurfaceSize", .func = zlua.wrap(setSurfaceSize) },
     .{ .name = "setSurfaceTextureID", .func = zlua.wrap(setSurfaceTextureID) },
-    .{ .name = "removeSurface", .func = zlua.wrap(removeSurface) },
+    .{ .name = "deleteSurface", .func = zlua.wrap(deleteSurface) },
     .{ .name = "createTexture", .func = zlua.wrap(createTexture) },
-    .{ .name = "removeTexture", .func = zlua.wrap(removeTexture) },
+    .{ .name = "deleteTexture", .func = zlua.wrap(deleteTexture) },
     .{ .name = "getTextureUVMin", .func = zlua.wrap(getTextureUVMin) },
     .{ .name = "getTextureUVMax", .func = zlua.wrap(getTextureUVMax) },
     .{ .name = "getTextureSize", .func = zlua.wrap(getTextureSize) },
     .{ .name = "getTextureTint", .func = zlua.wrap(getTextureTint) },
-    .{ .name = "getTextureUFlip", .func = zlua.wrap(getTextureUFlip) },
-    .{ .name = "getTextureVFlip", .func = zlua.wrap(getTextureVFlip) },
     .{ .name = "getTextureType", .func = zlua.wrap(getTextureType) },
     .{ .name = "getTextureAtlasID", .func = zlua.wrap(getTextureAtlasID) },
     .{ .name = "setTextureUVMin", .func = zlua.wrap(setTextureUVMin) },
     .{ .name = "setTextureUVMax", .func = zlua.wrap(setTextureUVMax) },
     .{ .name = "setTextureSize", .func = zlua.wrap(setTextureSize) },
     .{ .name = "setTextureTint", .func = zlua.wrap(setTextureTint) },
-    .{ .name = "setTextureUFlip", .func = zlua.wrap(setTextureUFlip) },
-    .{ .name = "setTextureVFlip", .func = zlua.wrap(setTextureVFlip) },
     .{ .name = "setTextureType", .func = zlua.wrap(setTextureType) },
     .{ .name = "setTextureAtlasID", .func = zlua.wrap(setTextureAtlasID) },
-    .{ .name = "loadTextureAtlas", .func = zlua.wrap(loadTextureAtlas) },
+    .{ .name = "loadTextureAtlasPath", .func = zlua.wrap(loadTextureAtlasPath) },
     .{ .name = "createCamera", .func = zlua.wrap(createCamera) },
     .{ .name = "getCameraIDs", .func = zlua.wrap(getCameraIDs) },
     .{ .name = "getCameraFov", .func = zlua.wrap(getCameraFov) },
@@ -94,6 +132,11 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "getKeyPressed", .func = zlua.wrap(getKeyPressed) },
     .{ .name = "getKeyReleased", .func = zlua.wrap(getKeyReleased) },
     .{ .name = "getKeyRepeat", .func = zlua.wrap(getKeyRepeat) },
+    .{ .name = "getMouseButtonDown", .func = zlua.wrap(getMouseButtonDown) },
+    .{ .name = "getMouseButtonUp", .func = zlua.wrap(getMouseButtonUp) },
+    .{ .name = "getMouseButtonPressed", .func = zlua.wrap(getMouseButtonPressed) },
+    .{ .name = "getMouseButtonReleased", .func = zlua.wrap(getMouseButtonReleased) },
+    .{ .name = "getMouseButtonRepeat", .func = zlua.wrap(getMouseButtonRepeat) },
 };
 
 // check if chive functions have been registered
@@ -124,9 +167,16 @@ var renderer: render_manager.Renderer = undefined;
 var setup_called = false;
 var next_scene_id: u32 = 0;
 var next_camera_id: u32 = 0;
+var next_surface_id: u32 = 0;
+var next_billboard_id: u32 = 0;
+var next_prefab_id: u32 = 0;
 var scenes: std.AutoArrayHashMap(u32, scene_manager.Scene) = undefined;
+var prefabs: std.AutoArrayHashMap(u32, objects.Prefab) = undefined;
 var cameras: std.AutoArrayHashMap(u32, objects.Camera) = undefined;
+var surfaces: std.AutoArrayHashMap(u32, objects.Surface) = undefined;
+var billboards: std.AutoArrayHashMap(u32, objects.Billboard) = undefined;
 var keys: std.AutoHashMap(glfw.Key, bool) = undefined;
+var mouse_buttons: std.AutoHashMap(glfw.MouseButton, bool) = undefined;
 
 var fps: i64 = 1;
 var fps_ms: i64 = 1000;
@@ -143,10 +193,18 @@ pub fn main() !void {
 
     scenes = .init(allocator);
     defer scenes.deinit();
+    prefabs = .init(allocator);
+    defer prefabs.deinit();
     cameras = .init(allocator);
     defer cameras.deinit();
+    surfaces = .init(allocator);
+    defer surfaces.deinit();
+    billboards = .init(allocator);
+    defer billboards.deinit();
     keys = .init(allocator);
     defer keys.deinit();
+    mouse_buttons = .init(allocator);
+    defer mouse_buttons.deinit();
 
     defer {
         for (scenes.values()) |*scene| {
@@ -165,6 +223,7 @@ pub fn main() !void {
         .{ "TextureType", objects.TextureType },
         .{ "DisplayMode", render_manager.DisplayMode },
         .{ "Key", glfw.Key },
+        .{ "MouseButton", glfw.MouseButton },
         .{ "MouseState", glfw.Window.InputModeCursor },
     }) |pair| {
         lua.newTable();
@@ -251,7 +310,7 @@ pub fn main() !void {
             continue;
         };
 
-        renderer.renderScene(camera, scene);
+        renderer.renderScene(camera, scene, prefabs.values(), surfaces.values(), billboards.values());
         renderer.update();
     }
 }
@@ -460,7 +519,7 @@ pub fn getCurrentScene(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// lua: createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
+/// lua: createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, tint: Color, size: Vec2): integer
 pub fn createTexture(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
@@ -471,10 +530,8 @@ pub fn createTexture(lua: *zlua.Lua) i32 {
     const uv_min = lua_funcs.pullVec2(lua, 2);
     const uv_max = lua_funcs.pullVec2(lua, 3);
     const texture_type = lua_funcs.pullUInt(lua, 4);
-    const flip_u = lua_funcs.pullBool(lua, 5);
-    const flip_v = lua_funcs.pullBool(lua, 6);
-    const tint = lua_funcs.pullColor(lua, 7);
-    const size = lua_funcs.pullVec2(lua, 8);
+    const tint = lua_funcs.pullColor(lua, 5);
+    const size = lua_funcs.pullVec2(lua, 6);
 
     const texture_type_enum: objects.TextureType = @enumFromInt(texture_type);
 
@@ -483,8 +540,6 @@ pub fn createTexture(lua: *zlua.Lua) i32 {
         .uv_min = uv_min,
         .uv_max = uv_max,
         .tex_type = texture_type_enum,
-        .flip_u = @intFromBool(flip_u),
-        .flip_v = @intFromBool(flip_v),
         .tint = tint,
         .tex_size = size,
     };
@@ -570,44 +625,6 @@ pub fn getTextureTint(lua: *zlua.Lua) i32 {
     };
 
     lua_funcs.pushColor(lua, texture.tint);
-
-    return 1;
-}
-
-/// lua: getTextureUFlip fun(texture_id: integer): boolean
-pub fn getTextureUFlip(lua: *zlua.Lua) i32 {
-    if (!setup_called) {
-        log.err("Setup Was Not Called", .{});
-        return 0;
-    }
-
-    const texture_id = lua_funcs.pullUInt(lua, 1);
-
-    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
-        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
-        return 0;
-    };
-
-    lua.pushBoolean(texture.flip_u != 0);
-
-    return 1;
-}
-
-/// lua: getTextureVFlip fun(texture_id: integer): boolean
-pub fn getTextureVFlip(lua: *zlua.Lua) i32 {
-    if (!setup_called) {
-        log.err("Setup Was Not Called", .{});
-        return 0;
-    }
-
-    const texture_id = lua_funcs.pullUInt(lua, 1);
-
-    const texture = renderer.texture_objects.getPtr(texture_id) orelse {
-        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
-        return 0;
-    };
-
-    lua.pushBoolean(texture.flip_v != 0);
 
     return 1;
 }
@@ -730,46 +747,6 @@ pub fn setTextureTint(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// lua: setTextureUFlip fun(texture_id: integer, flip_u: boolean)
-pub fn setTextureUFlip(lua: *zlua.Lua) i32 {
-    if (!setup_called) {
-        log.err("Setup Was Not Called", .{});
-        return 0;
-    }
-
-    const texture_id = lua_funcs.pullUInt(lua, 1);
-    const u_flip = lua_funcs.pullBool(lua, 2);
-
-    const texture: *objects.Texture = renderer.texture_objects.getPtr(texture_id) orelse {
-        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
-        return 0;
-    };
-
-    texture.*.flip_u = @intFromBool(u_flip);
-
-    return 0;
-}
-
-/// lua: setTextureVFlip fun(texture_id: integer, flip_v: boolean)
-pub fn setTextureVFlip(lua: *zlua.Lua) i32 {
-    if (!setup_called) {
-        log.err("Setup Was Not Called", .{});
-        return 0;
-    }
-
-    const texture_id = lua_funcs.pullUInt(lua, 1);
-    const v_flip = lua_funcs.pullBool(lua, 2);
-
-    const texture: *objects.Texture = renderer.texture_objects.getPtr(texture_id) orelse {
-        log.err("Texture With ID: {d} Does Not Exist", .{texture_id});
-        return 0;
-    };
-
-    texture.*.flip_v = @intFromBool(v_flip);
-
-    return 0;
-}
-
 /// lua: setTextureType fun(texture_id: integer, texture_type: integer)
 pub fn setTextureType(lua: *zlua.Lua) i32 {
     if (!setup_called) {
@@ -810,8 +787,8 @@ pub fn setTextureAtlasID(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// lua: removeTexture fun(texture_id: integer): boolean
-pub fn removeTexture(lua: *zlua.Lua) i32 {
+/// lua: deleteTexture fun(texture_id: integer): boolean
+pub fn deleteTexture(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -825,8 +802,8 @@ pub fn removeTexture(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// lua: loadTextureAtlas fun(atlas_path: string): integer
-pub fn loadTextureAtlas(lua: *zlua.Lua) i32 {
+/// lua: loadTextureAtlasPath fun(atlas_path: string): integer
+pub fn loadTextureAtlasPath(lua: *zlua.Lua) i32 {
     if (!setup_called) {
         log.err("Setup Was Not Called", .{});
         return 0;
@@ -874,12 +851,7 @@ pub fn loadTextureAtlas(lua: *zlua.Lua) i32 {
 }
 /// lua: getSurfaceIDs fun(): integer[]
 pub fn getSurfaceIDs(lua: *zlua.Lua) i32 {
-    const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface_ids = scene.surfaces.keys();
+    const surface_ids = surfaces.keys();
 
     var i: i32 = 0;
     for (surface_ids) |id| {
@@ -891,7 +863,657 @@ pub fn getSurfaceIDs(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-/// lua: createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
+/// lua: getBillboardIDs fun(): integer[]
+pub fn getBillboardIDs(lua: *zlua.Lua) i32 {
+    const billboard_ids = billboards.keys();
+
+    var i: i32 = 0;
+    for (billboard_ids) |id| {
+        lua.pushInteger(@intCast(id));
+        lua.rawSetIndex(push_idx, i);
+        i += 1;
+    }
+
+    return 1;
+}
+
+/// lua: getPrefabIDs fun(): integer[]
+pub fn getPrefabIDs(lua: *zlua.Lua) i32 {
+    const prefab_ids = prefabs.keys();
+
+    var i: i32 = 0;
+    for (prefab_ids) |id| {
+        lua.pushInteger(@intCast(id));
+        lua.rawSetIndex(push_idx, i);
+        i += 1;
+    }
+
+    return 1;
+}
+
+/// lua: getObjectIDs fun(scene_id: integer): integer[]
+pub fn getObjectIDs(lua: *zlua.Lua) i32 {
+    const scene_id = lua_funcs.pullUInt(lua, 1);
+    const scene: scene_manager.Scene = scenes.get(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object_ids = scene.objects.keys();
+
+    var i: i32 = 0;
+    for (object_ids) |id| {
+        lua.pushInteger(@intCast(id));
+        lua.rawSetIndex(push_idx, i);
+        i += 1;
+    }
+
+    return 1;
+}
+
+/// lua: createPrefab fun(surface_start: integer, surface_length: integer, billboard_start: integer, billboard_length: integer): integer
+pub fn createPrefab(lua: *zlua.Lua) i32 {
+    const surface_start = lua_funcs.pullUInt(lua, 1);
+    const surface_length = lua_funcs.pullUInt(lua, 2);
+    const billboard_start = lua_funcs.pullUInt(lua, 3);
+    const billboard_length = lua_funcs.pullUInt(lua, 4);
+
+    const prefab: objects.Prefab = .{
+        .surface_start = surface_start,
+        .surface_length = surface_length,
+        .billboard_start = billboard_start,
+        .billboard_length = billboard_length,
+    };
+
+    prefabs.put(next_prefab_id, prefab) catch {
+        log.err("Out of Memory", .{});
+        return 0;
+    };
+
+    lua.pushInteger(@intCast(next_prefab_id));
+    next_prefab_id += 1;
+    return 1;
+}
+
+/// lua: getPrefabSurfaceStart fun(prefab_id: integer): integer
+pub fn getPrefabSurfaceStart(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+
+    const prefab: objects.Prefab = prefabs.get(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    lua.pushInteger(prefab.surface_start);
+
+    return 1;
+}
+
+/// lua: getPrefabSurfaceLength fun(prefab_id: integer): integer
+pub fn getPrefabSurfaceLength(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+
+    const prefab: objects.Prefab = prefabs.get(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    lua.pushInteger(prefab.surface_length);
+
+    return 1;
+}
+
+/// lua: getPrefabBillboardStart fun(prefab_id: integer): integer
+pub fn getPrefabBillboardStart(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+
+    const prefab: objects.Prefab = prefabs.get(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    lua.pushInteger(prefab.billboard_start);
+
+    return 1;
+}
+
+/// lua: getPrefabBillboardLength fun(prefab_id: integer): integer
+pub fn getPrefabBillboardLength(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+
+    const prefab: objects.Prefab = prefabs.get(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    lua.pushInteger(prefab.billboard_length);
+
+    return 1;
+}
+
+/// lua: setPrefabSurfaceStart fun(prefab_id: integer, surface_start: integer)
+pub fn setPrefabSurfaceStart(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+    const surface_start = lua_funcs.pullUInt(lua, 2);
+
+    const prefab: *objects.Prefab = prefabs.getPtr(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    prefab.*.surface_start = surface_start;
+
+    return 0;
+}
+
+/// lua: setPrefabSurfaceLength fun(prefab_id: integer, surface_length: integer)
+pub fn setPrefabSurfaceLength(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+    const surface_length = lua_funcs.pullUInt(lua, 2);
+
+    const prefab: *objects.Prefab = prefabs.getPtr(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    prefab.*.surface_length = surface_length;
+
+    return 0;
+}
+
+/// lua: setPrefabBillboardStart fun(prefab_id: integer, billboard_start: integer)
+pub fn setPrefabBillboardStart(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+    const billboard_start = lua_funcs.pullUInt(lua, 2);
+
+    const prefab: *objects.Prefab = prefabs.getPtr(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    prefab.*.billboard_start = billboard_start;
+
+    return 0;
+}
+
+/// lua: setPrefabBillboardLength fun(prefab_id: integer, billboard_length: integer)
+pub fn setPrefabBillboardLength(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+    const billboard_length = lua_funcs.pullUInt(lua, 2);
+
+    const prefab: *objects.Prefab = prefabs.getPtr(prefab_id) orelse {
+        log.err("Prefab With ID: {d} Does Not Exist", .{prefab_id});
+        return 0;
+    };
+
+    prefab.*.billboard_length = billboard_length;
+
+    return 0;
+}
+
+/// lua: deletePrefab fun(prefab_id: integer): boolean
+pub fn deletePrefab(lua: *zlua.Lua) i32 {
+    const prefab_id = lua_funcs.pullUInt(lua, 1);
+
+    const successful = prefabs.swapRemove(prefab_id);
+
+    lua.pushBoolean(successful);
+
+    return 1;
+}
+
+/// lua: createObject fun(scene_id: integer, position: Vec3, rotation: Vec3, scale: Vec3, prefab_id: integer): integer
+pub fn createObject(lua: *zlua.Lua) i32 {
+    const scene_id = lua_funcs.pullUInt(lua, 1);
+    const position = lua_funcs.pullVec3(lua, 2);
+    const rotation = lua_funcs.pullVec3(lua, 3);
+    const scale = lua_funcs.pullVec3(lua, 4);
+    const prefab_id = lua_funcs.pullUInt(lua, 5);
+
+    const object: objects.Object = .init(position, rotation, scale, prefab_id);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object_id = scene.addObject(object) catch {
+        log.err("Out of Memory", .{});
+        return 0;
+    };
+
+    lua.pushInteger(@intCast(object_id));
+    return 1;
+}
+
+/// lua: getObjectPosition fun(object_id: integer, scene_id: integer): Vec3
+pub fn getObjectPosition(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+
+    const scene: scene_manager.Scene = scenes.get(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: objects.Object = scene.objects.get(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec3(lua, object.position);
+
+    return 1;
+}
+
+/// lua: getObjectRotation fun(object_id: integer, scene_id: integer): Vec3
+pub fn getObjectRotation(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+
+    const scene: scene_manager.Scene = scenes.get(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: objects.Object = scene.objects.get(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec3(lua, object.getRotation());
+
+    return 1;
+}
+
+/// lua: getObjectRadRotation fun(object_id: integer, scene_id: integer): Vec3
+pub fn getObjectRadRotation(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+
+    const scene: scene_manager.Scene = scenes.get(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: objects.Object = scene.objects.get(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec3(lua, object.rotation);
+
+    return 1;
+}
+
+/// lua: getObjectScale fun(object_id: integer, scene_id: integer): Vec3
+pub fn getObjectScale(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+
+    const scene: scene_manager.Scene = scenes.get(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: objects.Object = scene.objects.get(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec3(lua, object.scale);
+
+    return 1;
+}
+
+/// lua: getObjectPrefabID fun(object_id: integer, scene_id: integer): integer
+pub fn getObjectPrefabID(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+
+    const scene: scene_manager.Scene = scenes.get(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: objects.Object = scene.objects.get(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    lua.pushInteger(object.prefab_id);
+
+    return 1;
+}
+
+/// lua: setObjectPosition fun(object_id: integer, scene_id: integer, position: Vec3)
+pub fn setObjectPosition(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+    const position = lua_funcs.pullVec3(lua, 3);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: *objects.Object = scene.objects.getPtr(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    object.*.position = position;
+
+    return 0;
+}
+
+/// lua: setObjectPosition fun(object_id: integer, scene_id: integer, rotation: Vec3)
+pub fn setObjectRotation(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+    const rotation = lua_funcs.pullVec3(lua, 3);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: *objects.Object = scene.objects.getPtr(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    object.setRotation(rotation);
+
+    return 0;
+}
+
+/// lua: setObjectRadRotation fun(object_id: integer, scene_id: integer, rad_rotation: Vec3)
+pub fn setObjectRadRotation(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+    const rad_rotation = lua_funcs.pullVec3(lua, 3);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: *objects.Object = scene.objects.getPtr(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    object.*.rotation = rad_rotation;
+
+    return 0;
+}
+
+/// lua: setObjectPosition fun(object_id: integer, scene_id: integer, scale: Vec3)
+pub fn setObjectScale(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+    const scale = lua_funcs.pullVec3(lua, 3);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: *objects.Object = scene.objects.getPtr(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    object.*.scale = scale;
+
+    return 0;
+}
+
+/// lua: setObjectPrefabID fun(object_id: integer, scene_id: integer, prefab_id: integer)
+pub fn setObjectPrefabID(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+    const prefab_id = lua_funcs.pullUInt(lua, 3);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const object: *objects.Object = scene.objects.getPtr(object_id) orelse {
+        log.err("Object With ID: {d} Does Not Exist", .{object_id});
+        return 0;
+    };
+
+    object.*.prefab_id = prefab_id;
+
+    return 0;
+}
+
+/// lua: deleteObject fun(object_id: integer, scene_id: integer): boolean
+pub fn deleteObject(lua: *zlua.Lua) i32 {
+    const object_id = lua_funcs.pullUInt(lua, 1);
+    const scene_id = lua_funcs.pullUInt(lua, 2);
+
+    const scene: *scene_manager.Scene = scenes.getPtr(scene_id) orelse {
+        log.err("Scene With ID: {d} Does Not Exist", .{scene_id});
+        return 0;
+    };
+
+    const successful = scene.removeObject(object_id);
+
+    lua.pushBoolean(successful);
+
+    return 1;
+}
+
+/// lua: createBillboard fun(position: Vec3, lock_axis: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
+pub fn createBillboard(lua: *zlua.Lua) i32 {
+    const position = lua_funcs.pullVec3(lua, 1);
+    const lock_axis = lua_funcs.pullVec3(lua, 2);
+    const rotation = lua_funcs.pullNumber(lua, 3);
+    const size = lua_funcs.pullVec2(lua, 4);
+    const texture_id = lua_funcs.pullUInt(lua, 5);
+
+    const billboard: objects.Billboard = .init(position, rotation, size, lock_axis, texture_id);
+
+    billboards.put(next_billboard_id, billboard) catch {
+        log.err("Out of Memory", .{});
+        return 0;
+    };
+
+    lua.pushInteger(@intCast(next_billboard_id));
+    next_billboard_id += 1;
+    return 1;
+}
+
+/// lua: getBillboardPosition fun(billboard_id: integer): Vec3
+pub fn getBillboardPosition(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const billboard: objects.Billboard = billboards.get(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec3(lua, billboard.position);
+
+    return 1;
+}
+
+/// lua: getBillboardRotation fun(billboard_id: integer): number
+pub fn getBillboardRotation(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const billboard: objects.Billboard = billboards.get(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    lua.pushNumber(billboard.getRotation());
+
+    return 1;
+}
+
+/// lua: getBillboardRadRotation fun(billboard_id: integer): number
+pub fn getBillboardRadRotation(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const billboard: objects.Billboard = billboards.get(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    lua.pushNumber(billboard.rotation);
+
+    return 1;
+}
+
+/// lua: getBillboardLockAxis fun(billboard_id: integer): Vec3
+pub fn getBillboardLockAxis(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const billboard: objects.Billboard = billboards.get(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec3(lua, billboard.lock_axis);
+
+    return 1;
+}
+
+/// lua: getBillboardTextureID fun(billboard_id: integer): integer
+pub fn getBillboardTextureID(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const billboard: objects.Billboard = billboards.get(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    lua.pushInteger(billboard.texture_id);
+
+    return 1;
+}
+
+/// lua: getBillboardSize fun(billboard_id: integer): Vec2
+pub fn getBillboardSize(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const billboard: objects.Billboard = billboards.get(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    lua_funcs.pushVec2(lua, billboard.size);
+
+    return 1;
+}
+
+/// lua: setBillboardPosition fun(billboard_id: integer, position: Vec3)
+pub fn setBillboardPosition(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+    const position = lua_funcs.pullVec3(lua, 2);
+
+    const billboard: *objects.Billboard = billboards.getPtr(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    billboard.*.position = position;
+
+    return 0;
+}
+
+/// lua: setBillboardRotation fun(billboard_id: integer, rotation: number)
+pub fn setBillboardRotation(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+    const rotation = lua_funcs.pullNumber(lua, 2);
+
+    const billboard: *objects.Billboard = billboards.getPtr(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    billboard.*.setRotation(rotation);
+
+    return 0;
+}
+
+/// lua: setBillboardRadRotation fun(billboard_id: integer, rotation: number)
+pub fn setBillboardRadRotation(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+    const rad_rotation = lua_funcs.pullNumber(lua, 2);
+
+    const billboard: *objects.Billboard = billboards.getPtr(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    billboard.*.rotation = rad_rotation;
+
+    return 0;
+}
+
+/// lua: setBillboardLockAxis fun(billboard_id: integer, lock_axis: Vec3)
+pub fn setBillboardLockAxis(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+    const lock_axis = lua_funcs.pullVec3(lua, 2);
+
+    const billboard: *objects.Billboard = billboards.getPtr(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    billboard.*.lock_axis = lock_axis;
+
+    return 0;
+}
+
+/// lua: setBillboardTextureID fun(billboard_id: integer, texture_id: integer)
+pub fn setBillboardTextureID(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+    const texture_id = lua_funcs.pullUInt(lua, 2);
+
+    const billboard: *objects.Billboard = billboards.getPtr(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    billboard.*.texture_id = texture_id;
+
+    return 0;
+}
+
+/// lua: setBillboardSize fun(billboard_id: integer, size: Vec2)
+pub fn setBillboardSize(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+    const size = lua_funcs.pullVec2(lua, 2);
+
+    const billboard: *objects.Billboard = billboards.getPtr(billboard_id) orelse {
+        log.err("Billboard With ID: {d} Does Not Exist", .{billboard_id});
+        return 0;
+    };
+
+    billboard.*.size = size;
+
+    return 0;
+}
+
+/// lua: deleteBillboard fun(billboard_id: integer): boolean
+pub fn deleteBillboard(lua: *zlua.Lua) i32 {
+    const billboard_id = lua_funcs.pullUInt(lua, 1);
+
+    const successful = billboards.swapRemove(billboard_id);
+
+    lua.pushBoolean(successful);
+
+    return 1;
+}
+
+/// lua: createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, cull_backface: boolean, texture_id: integer): integer
 pub fn createSurface(lua: *zlua.Lua) i32 {
     const position = lua_funcs.pullVec3(lua, 1);
     const normal = lua_funcs.pullVec3(lua, 2);
@@ -902,17 +1524,13 @@ pub fn createSurface(lua: *zlua.Lua) i32 {
 
     const surface: objects.Surface = .init(position, normal, rotation, size, cull_backface, texture_id);
 
-    const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface_id = scene.addSurface(surface) catch {
+    surfaces.put(next_surface_id, surface) catch {
         log.err("Out of Memory", .{});
         return 0;
     };
 
-    lua.pushInteger(@intCast(surface_id));
+    lua.pushInteger(@intCast(next_surface_id));
+    next_surface_id += 1;
     return 1;
 }
 
@@ -920,12 +1538,7 @@ pub fn createSurface(lua: *zlua.Lua) i32 {
 pub fn getSurfacePosition(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -939,12 +1552,7 @@ pub fn getSurfacePosition(lua: *zlua.Lua) i32 {
 pub fn getSurfaceNormal(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -955,19 +1563,13 @@ pub fn getSurfaceNormal(lua: *zlua.Lua) i32 {
 }
 
 // mouse shit
-// implement billboards
 // other stuff
 
 /// lua: getSurfaceSize fun(surface_id: integer): Vec2
 pub fn getSurfaceSize(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -981,12 +1583,7 @@ pub fn getSurfaceSize(lua: *zlua.Lua) i32 {
 pub fn getSurfaceRadRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1000,12 +1597,7 @@ pub fn getSurfaceRadRotation(lua: *zlua.Lua) i32 {
 pub fn getSurfaceRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1019,12 +1611,7 @@ pub fn getSurfaceRotation(lua: *zlua.Lua) i32 {
 pub fn getSurfaceTextureID(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1038,12 +1625,7 @@ pub fn getSurfaceTextureID(lua: *zlua.Lua) i32 {
 pub fn getSurfaceBackFaceCulled(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene: scene_manager.Scene = scenes.get(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: objects.Surface = scene.surfaces.get(surface_id) orelse {
+    const surface: objects.Surface = surfaces.get(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1058,12 +1640,7 @@ pub fn setSurfaceBackFaceCulled(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const cull_backface = lua_funcs.pullBool(lua, 2);
 
-    const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1077,12 +1654,7 @@ pub fn setSurfacePosition(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const position = lua_funcs.pullVec3(lua, 2);
 
-    const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1097,12 +1669,7 @@ pub fn setSurfaceNormal(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const normal = lua_funcs.pullVec3(lua, 2);
 
-    const scene: *scene_manager.Scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1117,12 +1684,7 @@ pub fn setSurfaceRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullNumber(lua, 2);
 
-    const scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1137,12 +1699,7 @@ pub fn setSurfaceRadRotation(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const rotation = lua_funcs.pullNumber(lua, 2);
 
-    const scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1157,12 +1714,7 @@ pub fn setSurfaceSize(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const size = lua_funcs.pullVec2(lua, 2);
 
-    const scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1177,12 +1729,7 @@ pub fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
     const texture_id = lua_funcs.pullUInt(lua, 2);
 
-    const scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const surface: *objects.Surface = scene.surfaces.getPtr(surface_id) orelse {
+    const surface: *objects.Surface = surfaces.getPtr(surface_id) orelse {
         log.err("Surface With ID: {d} Does Not Exist", .{surface_id});
         return 0;
     };
@@ -1192,16 +1739,11 @@ pub fn setSurfaceTextureID(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// lua: removeSurface fun(surface_id: integer): boolean
-pub fn removeSurface(lua: *zlua.Lua) i32 {
+/// lua: deleteSurface fun(surface_id: integer): boolean
+pub fn deleteSurface(lua: *zlua.Lua) i32 {
     const surface_id = lua_funcs.pullUInt(lua, 1);
 
-    const scene = scenes.getPtr(current_scene) orelse {
-        log.err("Scene With ID: {d} Does Not Exist", .{current_scene});
-        return 0;
-    };
-
-    const successful = scene.removeSurface(surface_id);
+    const successful = surfaces.swapRemove(surface_id);
 
     lua.pushBoolean(successful);
 
@@ -1545,6 +2087,110 @@ pub fn getMousePos(lua: *zlua.Lua) i32 {
     return 1;
 }
 
-// pub fn getMouseButton(lua: *zlua.Lua) i32 {
-//     renderer.window.getMouseButton(.)
-// }
+/// lua: getMouseButtonDown fun(mouse_button: integer): boolean
+pub fn getMouseButtonDown(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const mouse_button = lua_funcs.pullInt(lua, 1);
+    const mouse_button_enum = std.meta.intToEnum(glfw.MouseButton, mouse_button) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+
+    mouse_buttons.put(mouse_button_enum, true) catch {
+        log.err("Out of Memory", .{});
+    };
+    const state = renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.press;
+    lua.pushBoolean(state);
+    return 1;
+}
+
+/// lua: getMouseButtonUp fun(mouse_button: integer): boolean
+pub fn getMouseButtonUp(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const mouse_button = lua_funcs.pullInt(lua, 1);
+    const mouse_button_enum = std.meta.intToEnum(glfw.MouseButton, mouse_button) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+
+    mouse_buttons.put(mouse_button_enum, false) catch {
+        log.err("Out of Memory", .{});
+    };
+    const state = renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.release;
+    lua.pushBoolean(state);
+    return 1;
+}
+
+/// lua: getMouseButtonPressed fun(key: integer): boolean
+pub fn getMouseButtonPressed(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const mouse_button = lua_funcs.pullInt(lua, 1);
+    const mouse_button_enum = std.meta.intToEnum(glfw.MouseButton, mouse_button) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+    const last_state = mouse_buttons.get(mouse_button_enum) orelse false;
+
+    mouse_buttons.put(mouse_button_enum, (renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.press)) catch {
+        log.err("Out of Memory", .{});
+    };
+
+    const state = (renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.press and !last_state);
+    lua.pushBoolean(state);
+
+    return 1;
+}
+
+/// lua: getMouseButtonReleased fun(key: integer): boolean
+pub fn getMouseButtonReleased(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const mouse_button = lua_funcs.pullInt(lua, 1);
+    const mouse_button_enum = std.meta.intToEnum(glfw.MouseButton, mouse_button) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+    const last_state = mouse_buttons.get(mouse_button_enum) orelse false;
+
+    mouse_buttons.put(mouse_button_enum, (renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.press)) catch {
+        log.err("Out of Memory", .{});
+    };
+
+    const state = (renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.release and last_state);
+    lua.pushBoolean(state);
+
+    return 1;
+}
+
+/// lua: getMouseButtonRepeat fun(mouse_button: integer): boolean
+pub fn getMouseButtonRepeat(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    const mouse_button = lua_funcs.pullInt(lua, 1);
+    const mouse_button_enum = std.meta.intToEnum(glfw.MouseButton, mouse_button) catch {
+        lua.pushBoolean(false);
+        return 1;
+    };
+
+    const state = renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.release;
+    lua.pushBoolean(state);
+    return 1;
+}

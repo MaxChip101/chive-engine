@@ -1,25 +1,27 @@
 #version 450 core
 
-const uint MAX_SURFACES = 6;
+const uint RAY_PIXEL_DEPTH = 8;
+const uint SKYBOX_PIXEL_DEPTH = 1;
+const uint MAX_PIXEL_DEPTH = RAY_PIXEL_DEPTH + SKYBOX_PIXEL_DEPTH;
+
 const float INF = 1e10;
 const vec4 background = vec4(0, 0, 0, 0);
 
 const uint TEXTURE_TYPE_STRETCH = 0;
 const uint TEXTURE_TYPE_TILE = 1;
 
-const uint BILLBOARD_MODE_FULL = 0;
-const uint BILLBOARD_MODE_AXIS_X = 1;
-const uint BILLBOARD_MODE_AXIS_Y = 1;
+const uint RAY_TYPE_BILLBOARD = 0;
+const uint RAY_TYPE_SURFACE = 1;
+const uint RAY_TYPE_SKYBOX = 2;
 
 struct Texture {
     vec2 uv_min;
     vec2 uv_max;
     uint type;
     uint atlas_id;
-    uint flip_u; // bool
-    uint flip_v; // bool
-    vec4 tint;
     vec2 size;
+    vec4 tint;
+    float _pad[2];
 };
 
 struct Surface {
@@ -29,25 +31,29 @@ struct Surface {
     uint texture_id;
     vec2 size;
     uint cull_backface;
-    float _pad0[2];
-    vec3 right;
-    float _pad1;
-    vec3 up;
-    float _pad2;
+    float _pad;
 };
 
 struct Billboard {
     vec3 position;
     float rotation;
-    vec2 size;
+    vec3 lock_axis;
     uint texture_id;
-    uint billboard_mode;
+    vec2 size;
+    float _pad[2];
 };
 
 struct RayResult {
-    uint surface_id;
+    uint id;
     float distance;
     vec2 uv;
+    uint type;
+};
+
+struct RayCheck {
+    vec2 uv;
+    float distance;
+    bool successful;
 };
 
 struct Camera {
@@ -55,6 +61,22 @@ struct Camera {
     float fov;
     vec3 rotation;
     float focal_length;
+};
+
+struct Prefab {
+    uint surface_start;
+    uint surface_length;
+    uint billboard_start;
+    uint billboard_length;
+};
+
+struct Object {
+    vec3 position;
+    uint prefab_id;
+    vec3 rotation;
+    float _pad0;
+    vec3 scale;
+    float _pad1;
 };
 
 layout(std430, binding = 0) readonly buffer CameraBuffer {
@@ -73,11 +95,22 @@ layout(std430, binding = 3) readonly buffer BillboardBuffer {
     Billboard billboards[];
 };
 
+layout(std430, binding = 4) readonly buffer PrefabBuffer {
+    Prefab prefabs[];
+};
+
+layout(std430, binding = 5) readonly buffer ObjectBuffer {
+    Object objects[];
+};
+
 uniform sampler2DArray texture_atlas;
 
 uniform int screen_width;
 uniform int screen_height;
 uniform uint surface_count;
+uniform uint billboard_count;
+uniform uint prefab_count;
+uniform uint object_count;
 uniform uint resolution_width;
 uniform uint resolution_height;
 
@@ -106,31 +139,76 @@ vec3 direction_from_pixel(float x, float y) {
     return normalize(forward + right * (direction_x) + up * (direction_y));
 }
 
-RayResult[MAX_SURFACES] ray(vec3 direction) {
+RayCheck ray_check(vec3 position, vec3 normal, float rotation, vec3 ray_direction, vec2 size) {
+    RayCheck check;
+    check.successful = false;
+    const float denominator = dot(normal, ray_direction);
+    if (abs(denominator) <= 0.0) return check;
+    const float distance = dot(position - camera.position, normal) / denominator;
+    vec3 reference = (abs(normal.y) >= 1.0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+    vec3 right = normalize(cross(reference, normal));
+    vec3 up = normalize(cross(normal, right));
+    vec3 rotated_right = rotate_vector(right, normal, rotation);
+    vec3 rotated_up = rotate_vector(up, normal, rotation);
+    vec3 uv_vec = camera.position + distance * ray_direction - position;
+    vec2 uv = vec2(dot(uv_vec, rotated_right), dot(uv_vec, rotated_up));
+    if (abs(uv.x) <= size.x && abs(uv.y) <= size.y) {
+        check.uv = uv;
+        check.distance = distance;
+        check.successful = true;
+    }
+    return check;
+}
+
+RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
     float last_nearest = 0;
-    RayResult[MAX_SURFACES] results;
-    for (uint ray = 0; ray < MAX_SURFACES; ray++) {
+    RayResult[MAX_PIXEL_DEPTH] results;
+    for (uint ray = 0; ray < RAY_PIXEL_DEPTH; ray++) {
         float nearest = INF;
-        uint surface_id;
-        vec2 uv = vec2(0, 0);
-        for (uint id = 0; id < surface_count; id++) {
-            Surface surface = surfaces[id];
-            const float denominator = dot(surface.normal, direction);
-            if (abs(denominator) <= 0.0) continue;
-            const float dist = dot(surface.position - camera.position, surface.normal) / denominator;
-            vec3 reference = (abs(surface.normal.y) >= 1.0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
-            vec3 right = normalize(cross(reference, surface.normal));
-            vec3 up = normalize(cross(surface.normal, right));
-            vec3 rotated_right = rotate_vector(right, surface.normal, surface.rotation);
-            vec3 rotated_up = rotate_vector(up, surface.normal, surface.rotation);
-            vec3 uv_vec = camera.position + dist * direction - surface.position;
-            float u = dot(uv_vec, rotated_right);
-            float v = dot(uv_vec, rotated_up);
-            if (abs(u) <= surface.size.x && abs(v) <= surface.size.y &&
-                    dist > 0.0 && dist < nearest && last_nearest < dist) {
-                nearest = dist;
-                uv = vec2(u, v);
-                surface_id = id;
+        uint id;
+        uint type;
+        vec2 uv = vec2(-1, -1);
+
+        for (uint object_id = 0; object_id < object_count; object_id++) {
+
+            Object object = objects[object_id];
+            Prefab prefab = prefabs[object.prefab_id];
+
+            if (prefab.billboard_length != 0) {
+                for (uint billboard_id = prefab.billboard_start; billboard_id < prefab.billboard_start + prefab.billboard_length; billboard_id++) {
+                    Billboard billboard = billboards[billboard_id];
+                    vec3 normalized_position = object.position + billboard.position; // move position based on rotation and size
+                    // scale and rotation shi
+                    vec3 direction = normalize(camera.position - normalized_position);
+                    if (billboard.lock_axis != vec3(0, 0, 0)) {
+                        direction = normalize(direction - dot(direction, billboard.lock_axis) * billboard.lock_axis);
+                    }
+                    RayCheck check = ray_check(normalized_position, direction, billboard.rotation, ray_direction, billboard.size);
+
+                    if (check.successful && check.distance > 0.0 && check.distance < nearest && last_nearest < check.distance) {
+                        id = billboard_id;
+                        nearest = check.distance;
+                        uv = check.uv;
+                        type = RAY_TYPE_BILLBOARD;
+                    }
+                }
+            }
+
+            if (prefab.surface_length != 0) {
+                for (uint surface_id = prefab.surface_start; surface_id < prefab.surface_start + prefab.surface_length; surface_id++) {
+                    Surface surface = surfaces[surface_id];
+                    if (surface.cull_backface == 1 && dot(surface.normal, ray_direction) >= 0) continue;
+                    vec3 normalized_position = object.position + surface.position; // move position based on rotation and size
+                    // scale and rotation shi
+                    RayCheck check = ray_check(normalized_position, surface.normal, surface.rotation, ray_direction, surface.size);
+
+                    if (check.successful && check.distance > 0.0 && check.distance < nearest && last_nearest < check.distance) {
+                        id = surface_id;
+                        nearest = check.distance;
+                        uv = check.uv;
+                        type = RAY_TYPE_SURFACE;
+                    }
+                }
             }
         }
         if (nearest < INF) {
@@ -138,58 +216,69 @@ RayResult[MAX_SURFACES] ray(vec3 direction) {
         }
         results[ray].distance = nearest;
         results[ray].uv = uv;
-        results[ray].surface_id = surface_id;
+        results[ray].id = id;
+        results[ray].type = type;
     }
     return results;
 }
 
 void main() {
-    vec2 screen = vec2(screen_width, screen_height);
-    vec2 screen_coord = gl_FragCoord.xy - screen / 2.0;
+    const vec2 screen = vec2(screen_width, screen_height);
+    const vec2 resolution = vec2(resolution_width, resolution_height);
     vec2 rotated_coord = vec2(
-            screen_coord.x * cos(-camera.rotation.z) - screen_coord.y * sin(-camera.rotation.z),
-            screen_coord.x * sin(-camera.rotation.z) + screen_coord.y * cos(-camera.rotation.z)
-        ) + screen / 2.0;
+        gl_FragCoord.x * cos(-camera.rotation.z) - gl_FragCoord.y * sin(-camera.rotation.z),
+        gl_FragCoord.x * sin(-camera.rotation.z) + gl_FragCoord.y * cos(-camera.rotation.z)
+    );
 
-    const float scale_x = screen.x / float(resolution_width);
-    const float scale_y = screen.y / float(resolution_height);
+    const vec2 scale = screen / resolution;
+    const vec2 pos = (floor(rotated_coord / scale) + 0.5) * scale;
 
-    const float x = (floor(rotated_coord.x / scale_x) + 0.5) * scale_x;
-    const float y = (floor(rotated_coord.y / scale_y) + 0.5) * scale_y;
-
-    const vec3 direction = direction_from_pixel(x, y);
-    RayResult ray_results[MAX_SURFACES] = ray(direction);
+    const vec3 direction = direction_from_pixel(pos.x, pos.y);
+    RayResult ray_results[MAX_PIXEL_DEPTH] = ray(direction);
 
     vec4 screen_pixel = background;
 
-    for (uint ray = 0; ray < MAX_SURFACES; ray++) {
+    for (uint ray = 0; ray < MAX_PIXEL_DEPTH; ray++) {
         const RayResult result = ray_results[ray];
         if (result.distance >= INF)
             break;
 
-        const Surface surface = surfaces[result.surface_id];
+        Texture tex = textures[0];
+        vec2 size = vec2(0, 0);
 
-        const Texture tex = textures[surface.texture_id];
+        switch (result.type) {
+            case RAY_TYPE_BILLBOARD:
+            Billboard billboard = billboards[result.id];
+            tex = textures[billboard.texture_id];
+            size = billboard.size;
+            break;
+            case RAY_TYPE_SURFACE:
+            Surface surface = surfaces[result.id];
+            tex = textures[surface.texture_id];
+            size = surface.size;
+            break;
+            case RAY_TYPE_SKYBOX:
+            tex = textures[0];
+            // impl later
+            break;
+        }
 
         vec2 uv_coord;
 
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
             uv_coord = vec2(
-                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / surface.size.x) * 0.5 + 0.5),
-                    mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / surface.size.y) * 0.5 + 0.5)
+                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / size.x) * 0.5 + 0.5),
+                    mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / size.y) * 0.5 + 0.5)
                 );
             break;
             case TEXTURE_TYPE_TILE:
             uv_coord = vec2(
-                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / surface.size.x),
-                    mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / surface.size.y)
+                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / size.x),
+                    mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / size.y)
                 );
             break;
         }
-
-        if (tex.flip_u != 0) uv_coord.x = 1.0 - uv_coord.x;
-        if (tex.flip_v != 0) uv_coord.y = 1.0 - uv_coord.y;
 
         vec4 tex_pixel = textureLod(texture_atlas, vec3(uv_coord.x, uv_coord.y, float(tex.atlas_id)), 0.0);
         const float shade = clamp(1 / (0.3 * result.distance), 0.1, 1.0);

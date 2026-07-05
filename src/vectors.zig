@@ -1,7 +1,7 @@
 const std = @import("std");
 const math = std.math;
 
-pub const Vec2 = extern struct {
+pub const Vec2 = extern struct { // 2
     x: f32,
     y: f32,
 
@@ -20,24 +20,52 @@ pub const Vec2 = extern struct {
         return self.x * self.x + self.y * self.y;
     }
 
-    pub fn multiply(self: *Self, scalar: f32) void {
+    pub fn multiplyAssign(self: *Self, scalar: f32) void {
         self.*.x *= scalar;
         self.*.y *= scalar;
     }
 
-    pub fn divide(self: *Self, scalar: f32) void {
+    pub fn divideAssign(self: *Self, scalar: f32) void {
         self.*.x /= scalar;
         self.*.y /= scalar;
     }
 
-    pub fn add(self: *Self, vec: Vec2) void {
+    pub fn addAssign(self: *Self, vec: Vec2) void {
         self.*.x += vec.x;
         self.*.y += vec.y;
     }
 
-    pub fn subtract(self: *Self, vec: Vec2) void {
+    pub fn subtractAssign(self: *Self, vec: Vec2) void {
         self.*.x -= vec.x;
         self.*.y -= vec.y;
+    }
+
+    pub fn multiply(self: *Self, scalar: f32) Self {
+        return .{
+            .x = self.x * scalar,
+            .y = self.y * scalar,
+        };
+    }
+
+    pub fn divide(self: *Self, scalar: f32) Self {
+        return .{
+            .x = self.x / scalar,
+            .y = self.y / scalar,
+        };
+    }
+
+    pub fn add(self: *Self, vec: Vec2) Self {
+        return .{
+            .x = self.x + vec.x,
+            .y = self.y + vec.y,
+        };
+    }
+
+    pub fn subtract(self: *Self, vec: Vec2) Self {
+        return .{
+            .x = self.x - vec.x,
+            .y = self.y - vec.y,
+        };
     }
 
     pub fn dot(self: Self, vec: Vec2) f32 {
@@ -50,7 +78,7 @@ pub const Vec2 = extern struct {
 
     pub fn normalize(self: *Self) void {
         const _length = self.length();
-        if (_length == 0) return .zero;
+        if (_length == 0) return;
 
         self.*.x = self.x / _length;
         self.*.y = self.y / _length;
@@ -64,7 +92,7 @@ pub const Vec2 = extern struct {
     }
 };
 
-pub const Color = extern struct {
+pub const Color = extern struct { // 4
     r: f32,
     g: f32,
     b: f32,
@@ -77,7 +105,7 @@ pub const Color = extern struct {
     pub const white: Self = .{ .r = 1.0, .g = 1.0, .b = 1.0, .a = 1.0 };
 };
 
-pub const Vec3 = extern struct {
+pub const Vec3 = extern struct { // 3
     x: f32,
     y: f32,
     z: f32,
@@ -98,35 +126,67 @@ pub const Vec3 = extern struct {
         return self.x * self.x + self.y * self.y + self.z * self.z;
     }
 
-    pub fn multiply(self: *Self, scalar: f32) void {
+    pub fn multiplyAssign(self: *Self, scalar: f32) void {
         self.*.x *= scalar;
         self.*.y *= scalar;
         self.*.z *= scalar;
     }
 
-    pub fn divide(self: *Self, scalar: f32) void {
+    pub fn divideAssign(self: *Self, scalar: f32) void {
         self.*.x /= scalar;
         self.*.y /= scalar;
         self.*.z /= scalar;
     }
 
-    pub fn add(self: *Self, vec: Vec3) void {
+    pub fn addAssign(self: *Self, vec: Vec3) void {
         self.*.x += vec.x;
         self.*.y += vec.y;
         self.*.z += vec.z;
     }
 
-    pub fn subtract(self: *Self, vec: Vec3) void {
+    pub fn subtractAssign(self: *Self, vec: Vec3) void {
         self.*.x -= vec.x;
         self.*.y -= vec.y;
         self.*.z -= vec.z;
+    }
+
+    pub fn multiply(self: Self, scalar: f32) Self {
+        return .{
+            .x = self.x * scalar,
+            .y = self.y * scalar,
+            .z = self.z * scalar,
+        };
+    }
+
+    pub fn divide(self: Self, scalar: f32) Self {
+        return .{
+            .x = self.x / scalar,
+            .y = self.y / scalar,
+            .z = self.z / scalar,
+        };
+    }
+
+    pub fn add(self: Self, vec: Vec3) Self {
+        return .{
+            .x = self.x + vec.x,
+            .y = self.y + vec.y,
+            .z = self.z + vec.z,
+        };
+    }
+
+    pub fn subtract(self: Self, vec: Vec3) Self {
+        return .{
+            .x = self.x - vec.x,
+            .y = self.y - vec.y,
+            .z = self.z - vec.z,
+        };
     }
 
     pub fn dot(self: Self, vec: Vec3) f32 {
         return self.x * vec.x + self.y * vec.y + self.z * vec.z;
     }
 
-    pub fn cross(self: Self, vec: Vec3) Vec3 {
+    pub fn cross(self: Self, vec: Vec3) Self {
         return .{
             .x = self.y * vec.z - self.z * vec.y,
             .y = self.z * vec.x - self.x * vec.z,
@@ -136,14 +196,14 @@ pub const Vec3 = extern struct {
 
     pub fn normalize(self: *Self) void {
         const _length = self.length();
-        if (_length == 0) return .zero;
+        if (_length == 0) return;
 
         self.*.x = self.x / _length;
         self.*.y = self.y / _length;
         self.*.z = self.z / _length;
     }
 
-    pub fn unit(self: Self) Vec3 {
+    pub fn unit(self: Self) Self {
         const _length = self.length();
 
         if (_length == 0) return .zero;

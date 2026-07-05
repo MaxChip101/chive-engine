@@ -16,14 +16,6 @@ TextureType = TextureType
 ---@type DisplayMode
 DisplayMode = DisplayMode
 
----@class BillboardMode
----@field Full 0
----@field AxisX 1
----@field AxisY 2
-
----@type BillboardMode
-BillboardMode = BillboardMode
-
 ---@class Key
 ---@field unknown -1
 ---@field space 32
@@ -150,6 +142,19 @@ BillboardMode = BillboardMode
 ---@type Key
 Key = Key
 
+---@class MouseButton
+---@field left 0
+---@field right 1
+---@field middle 2
+---@field four 3
+---@field five 4
+---@field six 5
+---@field seven 6
+---@field eight 7
+
+---@type MouseButton
+MouseButton = MouseButton
+
 ---@class MouseState
 ---@field normal 212993
 ---@field hidden 212994
@@ -198,6 +203,10 @@ color = color
 ---@field up Vec2
 ---@field length Vec2
 ---@field length_squared Vec2
+---@field multiplyAssign Vec2
+---@field divideAssign Vec2
+---@field addAssign Vec2
+---@field subtractAssign Vec2
 ---@field multiply Vec2
 ---@field divide Vec2
 ---@field add Vec2
@@ -206,10 +215,14 @@ color = color
 ---@field cross Vec2
 ---@field normalize Vec2
 ---@field unit Vec2
----@field add fun(a: Vec2, b: Vec2))
----@field subtract fun(a: Vec2, b: Vec2)
----@field multiply fun(a: Vec2, scalar: number)
----@field divide fun(a: Vec2, scalar: number)
+---@field add fun(a: Vec2, b: Vec2): Vec2
+---@field subtract fun(a: Vec2, b: Vec2): Vec2
+---@field multiply fun(a: Vec2, scalar: number): Vec2
+---@field divide fun(a: Vec2, scalar: number): Vec2
+---@field addAssign fun(a: Vec2, b: Vec2)
+---@field subtractAssign fun(a: Vec2, b: Vec2)
+---@field multiplyAssign fun(a: Vec2, scalar: number)
+---@field divideAssign fun(a: Vec2, scalar: number)
 ---@field length fun(a: Vec2): number
 ---@field lengthSquared fun(a: Vec2): number
 ---@field dot fun(a: Vec2, b: Vec2): number
@@ -228,6 +241,10 @@ vec2 = vec2
 ---@field forward Vec3
 ---@field length Vec3
 ---@field length_squared Vec3
+---@field multiplyAssign Vec3
+---@field divideAssign Vec3
+---@field addAssign Vec3
+---@field subtractAssign Vec3
 ---@field multiply Vec3
 ---@field divide Vec3
 ---@field add Vec3
@@ -236,10 +253,14 @@ vec2 = vec2
 ---@field cross Vec3
 ---@field normalize Vec3
 ---@field unit Vec3
----@field add fun(a: Vec3, b: Vec3)
----@field subtract fun(a: Vec3, b: Vec3)
----@field multiply fun(a: Vec3, scalar: number)
----@field divide fun(a: Vec3, scalar: number)
+---@field add fun(a: Vec3, b: Vec3): Vec3
+---@field subtract fun(a: Vec3, b: Vec3): Vec3
+---@field multiply fun(a: Vec3, scalar: number): Vec3
+---@field divide fun(a: Vec3, scalar: number): Vec3
+---@field addAssign fun(a: Vec3, b: Vec3)
+---@field subtractAssign fun(a: Vec3, b: Vec3)
+---@field multiplyAssign fun(a: Vec3, scalar: number)
+---@field divideAssign fun(a: Vec3, scalar: number)
 ---@field length fun(a: Vec3): number
 ---@field lengthSquared fun(a: Vec3): number
 ---@field dot fun(a: Vec3, b: Vec3): number
@@ -268,27 +289,62 @@ vec3 = vec3
 ---@field deleteScene fun(scene_id: integer): boolean
 ---@field setCurrentScene fun(scene_id: integer)
 ---@field getCurrentScene fun(): integer
----@field createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, flip_u: boolean, flip_v: boolean, tint: Color, size: Vec2): integer
+---@field createTexture fun(atlas_id: integer, uv_min: Vec2, uv_max: Vec2, texture_type: integer, tint: Color, size: Vec2): integer
 ---@field getTextureUVMin fun(texture_id: integer): Vec2
 ---@field getTextureUVMax fun(texture_id: integer): Vec2
 ---@field getTextureSize fun(texture_id: integer): Vec2
 ---@field getTextureTint fun(texture_id: integer): Color
----@field getTextureUFlip fun(texture_id: integer): boolean
----@field getTextureVFlip fun(texture_id: integer): boolean
 ---@field getTextureType fun(texture_id: integer): integer
 ---@field getTextureAtlasID fun(texture_id: integer): integer
 ---@field setTextureUVMin fun(texture_id: integer, uv_min: Vec2)
 ---@field setTextureUVMax fun(texture_id: integer, uv_max: Vec2)
 ---@field setTextureSize fun(texture_id: integer, size: Vec2)
 ---@field setTextureTint fun(texture_id: integer, tint: Color)
----@field setTextureUFlip fun(texture_id: integer, flip_u: boolean)
----@field setTextureVFlip fun(texture_id: integer, flip_v: boolean)
 ---@field setTextureType fun(texture_id: integer, texture_type: integer)
 ---@field setTextureAtlasID fun(texture_id: integer, atlas_id: integer)
----@field removeTexture fun(texture_id: integer): boolean
----@field loadTextureAtlas fun(atlas_path: string): integer
+---@field deleteTexture fun(texture_id: integer): boolean
+---@field loadTextureAtlasPath fun(atlas_path: string): integer
 ---@field getSurfaceIDs fun(): integer[]
----@field createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
+---@field getBillboardIDs fun(): integer[]
+---@field getPrefabIDs fun(): integer[]
+---@field getObjectIDs fun(scene_id: integer): integer[]
+---@field createPrefab fun(surface_start: integer, surface_length: integer, billboard_start: integer, billboard_length: integer): integer
+---@field getPrefabSurfaceStart fun(prefab_id: integer): integer
+---@field getPrefabSurfaceLength fun(prefab_id: integer): integer
+---@field getPrefabBillboardStart fun(prefab_id: integer): integer
+---@field getPrefabBillboardLength fun(prefab_id: integer): integer
+---@field setPrefabSurfaceStart fun(prefab_id: integer, surface_start: integer)
+---@field setPrefabSurfaceLength fun(prefab_id: integer, surface_length: integer)
+---@field setPrefabBillboardStart fun(prefab_id: integer, billboard_start: integer)
+---@field setPrefabBillboardLength fun(prefab_id: integer, billboard_length: integer)
+---@field deletePrefab fun(prefab_id: integer): boolean
+---@field createObject fun(scene_id: integer, position: Vec3, rotation: Vec3, scale: Vec3, prefab_id: integer): integer
+---@field getObjectPosition fun(object_id: integer, scene_id: integer): Vec3
+---@field getObjectRotation fun(object_id: integer, scene_id: integer): Vec3
+---@field getObjectRadRotation fun(object_id: integer, scene_id: integer): Vec3
+---@field getObjectScale fun(object_id: integer, scene_id: integer): Vec3
+---@field getObjectPrefabID fun(object_id: integer, scene_id: integer): integer
+---@field setObjectPosition fun(object_id: integer, scene_id: integer, position: Vec3)
+---@field setObjectPosition fun(object_id: integer, scene_id: integer, rotation: Vec3)
+---@field setObjectRadRotation fun(object_id: integer, scene_id: integer, rad_rotation: Vec3)
+---@field setObjectPosition fun(object_id: integer, scene_id: integer, scale: Vec3)
+---@field setObjectPrefabID fun(object_id: integer, scene_id: integer, prefab_id: integer)
+---@field deleteObject fun(object_id: integer, scene_id: integer): boolean
+---@field createBillboard fun(position: Vec3, lock_axis: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
+---@field getBillboardPosition fun(billboard_id: integer): Vec3
+---@field getBillboardRotation fun(billboard_id: integer): number
+---@field getBillboardRadRotation fun(billboard_id: integer): number
+---@field getBillboardLockAxis fun(billboard_id: integer): Vec3
+---@field getBillboardTextureID fun(billboard_id: integer): integer
+---@field getBillboardSize fun(billboard_id: integer): Vec2
+---@field setBillboardPosition fun(billboard_id: integer, position: Vec3)
+---@field setBillboardRotation fun(billboard_id: integer, rotation: number)
+---@field setBillboardRadRotation fun(billboard_id: integer, rotation: number)
+---@field setBillboardLockAxis fun(billboard_id: integer, lock_axis: Vec3)
+---@field setBillboardTextureID fun(billboard_id: integer, texture_id: integer)
+---@field setBillboardSize fun(billboard_id: integer, size: Vec2)
+---@field deleteBillboard fun(billboard_id: integer): boolean
+---@field createSurface fun(position: Vec3, normal: Vec3, rotation: number, size: Vec2, cull_backface: boolean, texture_id: integer): integer
 ---@field getSurfacePosition fun(surface_id: integer): Vec3
 ---@field getSurfaceNormal fun(surface_id: integer): Vec3
 ---@field getSurfaceSize fun(surface_id: integer): Vec2
@@ -303,7 +359,7 @@ vec3 = vec3
 ---@field setSurfaceRadRotation fun(surface_id: integer, rad_rotation: number)
 ---@field setSurfaceSize fun(surface_id: integer, size: Vec2)
 ---@field setSurfaceTextureID fun(surface_id: integer, texture_id: integer)
----@field removeSurface fun(surface_id: integer): boolean
+---@field deleteSurface fun(surface_id: integer): boolean
 ---@field createCamera fun(position: Vec3, rotation: Vec3, fov: number): integer
 ---@field getCameraIDs fun(): integer[]
 ---@field getCameraPosition fun(camera_id: integer): Vec3
@@ -327,6 +383,11 @@ vec3 = vec3
 ---@field setMouseState fun(mouse_state: integer)
 ---@field getMouseState fun(): integer
 ---@field getMousePos fun(): Vec2
+---@field getMouseButtonDown fun(mouse_button: integer): boolean
+---@field getMouseButtonUp fun(mouse_button: integer): boolean
+---@field getMouseButtonPressed fun(key: integer): boolean
+---@field getMouseButtonReleased fun(key: integer): boolean
+---@field getMouseButtonRepeat fun(mouse_button: integer): boolean
 
 ---@type chive
 chive = chive

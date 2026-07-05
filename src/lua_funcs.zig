@@ -9,6 +9,10 @@ pub const vec3_funcs = [_]zlua.FnReg{
     .{ .name = "subtract", .func = zlua.wrap(vec3Subtract) },
     .{ .name = "multiply", .func = zlua.wrap(vec3Multiply) },
     .{ .name = "divide", .func = zlua.wrap(vec3Divide) },
+    .{ .name = "addAssign", .func = zlua.wrap(vec3AddAssign) },
+    .{ .name = "subtractAssign", .func = zlua.wrap(vec3SubtractAssign) },
+    .{ .name = "multiplyAssign", .func = zlua.wrap(vec3MultiplyAssign) },
+    .{ .name = "divideAssign", .func = zlua.wrap(vec3DivideAssign) },
     .{ .name = "length", .func = zlua.wrap(vec3Length) },
     .{ .name = "lengthSquared", .func = zlua.wrap(vec3LengthSquared) },
     .{ .name = "dot", .func = zlua.wrap(vec3Dot) },
@@ -21,6 +25,10 @@ pub const vec2_funcs = [_]zlua.FnReg{
     .{ .name = "subtract", .func = zlua.wrap(vec2Subtract) },
     .{ .name = "multiply", .func = zlua.wrap(vec2Multiply) },
     .{ .name = "divide", .func = zlua.wrap(vec2Divide) },
+    .{ .name = "addAssign", .func = zlua.wrap(vec2AddAssign) },
+    .{ .name = "subtractAssign", .func = zlua.wrap(vec2SubtractAssign) },
+    .{ .name = "multiplyAssign", .func = zlua.wrap(vec2MultiplyAssign) },
+    .{ .name = "divideAssign", .func = zlua.wrap(vec2DivideAssign) },
     .{ .name = "length", .func = zlua.wrap(vec2Length) },
     .{ .name = "lengthSquared", .func = zlua.wrap(vec2LengthSquared) },
     .{ .name = "dot", .func = zlua.wrap(vec2Dot) },
@@ -154,36 +162,68 @@ pub fn vec2LengthSquared(lua: *zlua.Lua) i32 {
     return 1;
 }
 
+pub fn vec2AddAssign(lua: *zlua.Lua) i32 {
+    var vector1 = pullVec2(lua, 1);
+    const vector2 = pullVec2(lua, 2);
+    vector1.addAssign(vector2);
+    writeVec2(lua, 1, vector1);
+    return 0;
+}
+
+pub fn vec2SubtractAssign(lua: *zlua.Lua) i32 {
+    var vector1 = pullVec2(lua, 1);
+    const vector2 = pullVec2(lua, 2);
+    vector1.subtractAssign(vector2);
+    writeVec2(lua, 1, vector1);
+    return 0;
+}
+
+pub fn vec2MultiplyAssign(lua: *zlua.Lua) i32 {
+    var vector = pullVec2(lua, 1);
+    const scalar = pullNumber(lua, 2);
+    vector.multiplyAssign(scalar);
+    writeVec2(lua, 1, vector);
+    return 0;
+}
+
+pub fn vec2DivideAssign(lua: *zlua.Lua) i32 {
+    var vector = pullVec2(lua, 1);
+    const scalar = pullNumber(lua, 2);
+    vector.divideAssign(scalar);
+    writeVec2(lua, 1, vector);
+    return 0;
+}
+
 pub fn vec2Add(lua: *zlua.Lua) i32 {
     var vector1 = pullVec2(lua, 1);
     const vector2 = pullVec2(lua, 2);
-    vector1.add(vector2);
-    writeVec2(lua, 1, vector1);
-    return 0;
+    const result = vector1.add(vector2);
+    pushVec2(lua, result);
+    return 1;
 }
 
 pub fn vec2Subtract(lua: *zlua.Lua) i32 {
     var vector1 = pullVec2(lua, 1);
     const vector2 = pullVec2(lua, 2);
-    vector1.subtract(vector2);
-    writeVec2(lua, 1, vector1);
-    return 0;
+    const result = vector1.subtract(vector2);
+    pushVec2(lua, result);
+    return 1;
 }
 
 pub fn vec2Multiply(lua: *zlua.Lua) i32 {
     var vector = pullVec2(lua, 1);
     const scalar = pullNumber(lua, 2);
-    vector.multiply(scalar);
-    writeVec2(lua, 1, vector);
-    return 0;
+    const result = vector.multiply(scalar);
+    pushVec2(lua, result);
+    return 1;
 }
 
 pub fn vec2Divide(lua: *zlua.Lua) i32 {
     var vector = pullVec2(lua, 1);
     const scalar = pullNumber(lua, 2);
-    vector.divide(scalar);
-    writeVec2(lua, 1, vector);
-    return 0;
+    const result = vector.divide(scalar);
+    pushVec2(lua, result);
+    return 1;
 }
 
 pub fn vec2Dot(lua: *zlua.Lua) i32 {
@@ -218,36 +258,68 @@ pub fn vec3LengthSquared(lua: *zlua.Lua) i32 {
     return 1;
 }
 
+pub fn vec3AddAssign(lua: *zlua.Lua) i32 {
+    var vector1 = pullVec3(lua, 1);
+    const vector2 = pullVec3(lua, 2);
+    vector1.addAssign(vector2);
+    writeVec3(lua, 1, vector1);
+    return 0;
+}
+
+pub fn vec3SubtractAssign(lua: *zlua.Lua) i32 {
+    var vector1 = pullVec3(lua, 1);
+    const vector2 = pullVec3(lua, 2);
+    vector1.subtractAssign(vector2);
+    writeVec3(lua, 1, vector1);
+    return 0;
+}
+
+pub fn vec3MultiplyAssign(lua: *zlua.Lua) i32 {
+    var vector = pullVec3(lua, 1);
+    const scalar = pullNumber(lua, 2);
+    vector.multiplyAssign(scalar);
+    writeVec3(lua, 1, vector);
+    return 0;
+}
+
+pub fn vec3DivideAssign(lua: *zlua.Lua) i32 {
+    var vector = pullVec3(lua, 1);
+    const scalar = pullNumber(lua, 2);
+    vector.divideAssign(scalar);
+    writeVec3(lua, 1, vector);
+    return 0;
+}
+
 pub fn vec3Add(lua: *zlua.Lua) i32 {
     var vector1 = pullVec3(lua, 1);
     const vector2 = pullVec3(lua, 2);
-    vector1.add(vector2);
-    writeVec3(lua, 1, vector1);
-    return 0;
+    const result = vector1.add(vector2);
+    pushVec3(lua, result);
+    return 1;
 }
 
 pub fn vec3Subtract(lua: *zlua.Lua) i32 {
     var vector1 = pullVec3(lua, 1);
     const vector2 = pullVec3(lua, 2);
-    vector1.subtract(vector2);
-    writeVec3(lua, 1, vector1);
-    return 0;
+    const result = vector1.subtract(vector2);
+    pushVec3(lua, result);
+    return 1;
 }
 
 pub fn vec3Multiply(lua: *zlua.Lua) i32 {
     var vector = pullVec3(lua, 1);
     const scalar = pullNumber(lua, 2);
-    vector.multiply(scalar);
-    writeVec3(lua, 1, vector);
-    return 0;
+    const result = vector.multiply(scalar);
+    pushVec3(lua, result);
+    return 1;
 }
 
 pub fn vec3Divide(lua: *zlua.Lua) i32 {
     var vector = pullVec3(lua, 1);
     const scalar = pullNumber(lua, 2);
-    vector.divide(scalar);
-    writeVec3(lua, 1, vector);
-    return 0;
+    const result = vector.divide(scalar);
+    pushVec3(lua, result);
+    return 1;
 }
 
 pub fn vec3Dot(lua: *zlua.Lua) i32 {
