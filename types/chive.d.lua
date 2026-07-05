@@ -388,6 +388,7 @@ vec3 = vec3
 ---@field getMouseButtonPressed fun(key: integer): boolean
 ---@field getMouseButtonReleased fun(key: integer): boolean
 ---@field getMouseButtonRepeat fun(mouse_button: integer): boolean
+---@field getMouseScroll fun(): Vec2
 
 ---@type chive
 chive = chive

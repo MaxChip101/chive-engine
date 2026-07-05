@@ -137,6 +137,7 @@ const chive_funcs = [_]zlua.FnReg{
     .{ .name = "getMouseButtonPressed", .func = zlua.wrap(getMouseButtonPressed) },
     .{ .name = "getMouseButtonReleased", .func = zlua.wrap(getMouseButtonReleased) },
     .{ .name = "getMouseButtonRepeat", .func = zlua.wrap(getMouseButtonRepeat) },
+    .{ .name = "getMouseScroll", .func = zlua.wrap(getMouseScroll) },
 };
 
 // check if chive functions have been registered
@@ -182,6 +183,8 @@ var fps: i64 = 1;
 var fps_ms: i64 = 1000;
 var current_scene: u32 = 0;
 var current_camera: u32 = 0;
+
+var scroll = vectors.Vec2.zero;
 
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
@@ -282,6 +285,8 @@ pub fn main() !void {
 
     defer renderer.deinit();
 
+    renderer.window.setScrollCallback(scrollCallback);
+
     var last_time = time.milliTimestamp();
 
     var accumulator: i64 = 0;
@@ -292,6 +297,9 @@ pub fn main() !void {
         const delta_time: f32 = @as(f32, @floatFromInt(delta_time_ms)) / 1000.0;
         last_time = current_time;
         accumulator += delta_time_ms;
+
+        scroll = vectors.Vec2.zero;
+        renderer.update();
 
         if (delta_time_ms >= fps_ms) {
             try lua_funcs.fixedUpdate(lua, @as(f32, @floatFromInt(fps_ms)) / 1000.0);
@@ -311,8 +319,13 @@ pub fn main() !void {
         };
 
         renderer.renderScene(camera, scene, prefabs.values(), surfaces.values(), billboards.values());
-        renderer.update();
     }
+}
+
+fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
+    _ = window;
+    scroll.x = @floatCast(xoffset);
+    scroll.y = @floatCast(yoffset);
 }
 
 /// lua: setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: Vec2, max_texture_atlases: integer)
@@ -2192,5 +2205,16 @@ pub fn getMouseButtonRepeat(lua: *zlua.Lua) i32 {
 
     const state = renderer.window.getMouseButton(mouse_button_enum) == glfw.Action.release;
     lua.pushBoolean(state);
+    return 1;
+}
+
+/// lua: getMouseScroll fun(): Vec2
+pub fn getMouseScroll(lua: *zlua.Lua) i32 {
+    if (!setup_called) {
+        log.err("Setup Was Not Called", .{});
+        return 0;
+    }
+
+    lua_funcs.pushVec2(lua, scroll);
     return 1;
 }
