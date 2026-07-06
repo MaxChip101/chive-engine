@@ -40,7 +40,7 @@ struct Billboard {
     vec3 lock_axis;
     uint texture_id;
     vec2 size;
-    uint use_local_axis; // bool
+    //uint use_local_axis; // bool
     float _pad;
 };
 
@@ -213,12 +213,12 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
             if (prefab.billboard_length != 0) {
                 for (uint billboard_id = prefab.billboard_start; billboard_id < prefab.billboard_start + prefab.billboard_length; billboard_id++) {
                     Billboard billboard = billboards[billboard_id];
-                    vec3 normalized_position = object.position + object_rotation * (billboard.position * object.scale); // move position based on rotation and size
-                    // scale and rotation shi
+                    vec3 normalized_position = object.position + object_rotation * (billboard.position * object.scale);
                     vec3 direction = normalize(camera.position - normalized_position);
                     if (billboard.lock_axis != vec3(0, 0, 0)) {
                         direction = normalize(direction - dot(direction, billboard.lock_axis) * billboard.lock_axis);
                     }
+                    // make local or world lock based on value
                     mat3 world_orientation = basis_from_normal(direction, billboard.rotation);
 
                     vec2 size = vec2(billboard.size.x * length(object.scale * world_orientation[0]), billboard.size.y * length(object.scale * world_orientation[1]));
