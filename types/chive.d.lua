@@ -325,7 +325,7 @@ vec3 = vec3
 ---@field getObjectScale fun(object_id: integer, scene_id: integer): Vec3
 ---@field getObjectPrefabID fun(object_id: integer, scene_id: integer): integer
 ---@field setObjectPosition fun(object_id: integer, scene_id: integer, position: Vec3)
----@field setObjectPosition fun(object_id: integer, scene_id: integer, rotation: Vec3)
+---@field setObjectRotation fun(object_id: integer, scene_id: integer, rotation: Vec3)
 ---@field setObjectRadRotation fun(object_id: integer, scene_id: integer, rad_rotation: Vec3)
 ---@field setObjectPosition fun(object_id: integer, scene_id: integer, scale: Vec3)
 ---@field setObjectPrefabID fun(object_id: integer, scene_id: integer, prefab_id: integer)

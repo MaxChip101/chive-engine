@@ -40,14 +40,23 @@ struct Billboard {
     vec3 lock_axis;
     uint texture_id;
     vec2 size;
-    float _pad[2];
+    uint use_local_axis; // bool
+    float _pad;
 };
+
+// impl use local axis
+// cache some things by calculating it on the gpu like:
+// rotation matrix
+// basis matrix
+// etc
+
 
 struct RayResult {
     uint id;
     float distance;
     vec2 uv;
     uint type;
+    vec2 world_size;
 };
 
 struct RayCheck {
@@ -119,39 +128,63 @@ float height = float(screen_height);
 
 out vec4 FragColor;
 
-vec3 rotate_vector(vec3 vector, vec3 axis, float angle) {
-    return vector * cos(angle) + cross(axis, vector) * sin(angle) + axis * dot(axis, vector) * (1.0 - cos(angle));
+mat3 rotation_matrix(vec3 euler) {
+    float cx = cos(-euler.x);
+    float sx = sin(-euler.x);
+    float cy = cos(euler.y);
+    float sy = sin(euler.y);
+    float cz = cos(-euler.z);
+    float sz = sin(-euler.z);
+
+    return mat3(
+        cy * cz,
+        cy * sz,
+        -sy,
+
+        sx * sy * cz - cx * sz,
+        sx * sy * sz + cx * cz,
+        sx * cy,
+
+        cx * sy * cz + sx * sz,
+        cx * sy * sz - sx * cz,
+        cx * cy
+    );
 }
 
-vec3 direction_from_pixel(float x, float y) {
-    float direction_x = (x - width / 2.0) / camera.focal_length;
-    float direction_y = (y - height / 2.0) / camera.focal_length;
-
-    float pitch_cos = cos(camera.rotation.x);
-    float pitch_sin = sin(camera.rotation.x);
-    float yaw_cos = cos(camera.rotation.y);
-    float yaw_sin = sin(camera.rotation.y);
-
-    vec3 forward = normalize(vec3(yaw_sin * pitch_cos, pitch_sin, pitch_cos * yaw_cos));
-    vec3 right = normalize(vec3(yaw_cos, 0.0, -yaw_sin));
-    vec3 up = normalize(vec3(-yaw_sin * pitch_sin, pitch_cos, -yaw_cos * pitch_sin));
-
-    return normalize(forward + right * (direction_x) + up * (direction_y));
-}
-
-RayCheck ray_check(vec3 position, vec3 normal, float rotation, vec3 ray_direction, vec2 size) {
-    RayCheck check;
-    check.successful = false;
-    const float denominator = dot(normal, ray_direction);
-    if (abs(denominator) <= 0.0) return check;
-    const float distance = dot(position - camera.position, normal) / denominator;
+mat3 basis_from_normal(vec3 normal, float rotation) {
     vec3 reference = (abs(normal.y) >= 1.0) ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
     vec3 right = normalize(cross(reference, normal));
     vec3 up = normalize(cross(normal, right));
-    vec3 rotated_right = rotate_vector(right, normal, rotation);
-    vec3 rotated_up = rotate_vector(up, normal, rotation);
+
+    mat3 frame = mat3(right, up, normal);
+    float c = cos(rotation);
+    float s = sin(rotation);
+    mat3 rz = mat3(c, s, 0, -s, c, 0, 0, 0, 1);
+
+    return frame * rz;
+}
+
+vec3 direction_from_pixel(vec2 pixel) {
+    float inverse_focal = 1.0 / camera.focal_length;
+    float direction_x = (pixel.x - (width * 0.5)) * inverse_focal;
+    float direction_y = (pixel.y - (height * 0.5)) * inverse_focal;
+
+    vec3 base_ray = vec3(direction_x, direction_y, 1.0);
+
+    mat3 camera_matrix = rotation_matrix(camera.rotation);
+
+    return normalize(camera_matrix * base_ray);
+}
+
+RayCheck ray_check(vec3 position, mat3 orientation, vec3 ray_direction, vec2 size) {
+    RayCheck check;
+    check.successful = false;
+    vec3 normal = orientation[2];
+    const float denominator = dot(normal, ray_direction);
+    if (abs(denominator) <= 0.0) return check;
+    const float distance = dot(position - camera.position, normal) / denominator;
     vec3 uv_vec = camera.position + distance * ray_direction - position;
-    vec2 uv = vec2(dot(uv_vec, rotated_right), dot(uv_vec, rotated_up));
+    vec2 uv = vec2(dot(uv_vec, orientation[0]), dot(uv_vec, orientation[1]));
     if (abs(uv.x) <= size.x && abs(uv.y) <= size.y) {
         check.uv = uv;
         check.distance = distance;
@@ -168,28 +201,36 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
         uint id;
         uint type;
         vec2 uv = vec2(-1, -1);
+        vec2 world_size = vec2(0, 0);
 
         for (uint object_id = 0; object_id < object_count; object_id++) {
 
             Object object = objects[object_id];
             Prefab prefab = prefabs[object.prefab_id];
 
+            mat3 object_rotation = rotation_matrix(object.rotation);
+
             if (prefab.billboard_length != 0) {
                 for (uint billboard_id = prefab.billboard_start; billboard_id < prefab.billboard_start + prefab.billboard_length; billboard_id++) {
                     Billboard billboard = billboards[billboard_id];
-                    vec3 normalized_position = object.position + billboard.position; // move position based on rotation and size
+                    vec3 normalized_position = object.position + object_rotation * (billboard.position * object.scale); // move position based on rotation and size
                     // scale and rotation shi
                     vec3 direction = normalize(camera.position - normalized_position);
                     if (billboard.lock_axis != vec3(0, 0, 0)) {
                         direction = normalize(direction - dot(direction, billboard.lock_axis) * billboard.lock_axis);
                     }
-                    RayCheck check = ray_check(normalized_position, direction, billboard.rotation, ray_direction, billboard.size);
+                    mat3 world_orientation = basis_from_normal(direction, billboard.rotation);
+
+                    vec2 size = vec2(billboard.size.x * length(object.scale * world_orientation[0]), billboard.size.y * length(object.scale * world_orientation[1]));
+
+                    RayCheck check = ray_check(normalized_position, world_orientation, ray_direction, size);
 
                     if (check.successful && check.distance > 0.0 && check.distance < nearest && last_nearest < check.distance) {
                         id = billboard_id;
                         nearest = check.distance;
                         uv = check.uv;
                         type = RAY_TYPE_BILLBOARD;
+                        world_size = size;
                     }
                 }
             }
@@ -198,15 +239,19 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
                 for (uint surface_id = prefab.surface_start; surface_id < prefab.surface_start + prefab.surface_length; surface_id++) {
                     Surface surface = surfaces[surface_id];
                     if (surface.cull_backface == 1 && dot(surface.normal, ray_direction) >= 0) continue;
-                    vec3 normalized_position = object.position + surface.position; // move position based on rotation and size
-                    // scale and rotation shi
-                    RayCheck check = ray_check(normalized_position, surface.normal, surface.rotation, ray_direction, surface.size);
+                    vec3 normalized_position = object.position + object_rotation * (surface.position * object.scale);
+                    mat3 local_orientation = basis_from_normal(surface.normal, surface.rotation);
+                    mat3 world_orientation = object_rotation * local_orientation;
+                    vec2 size = vec2(surface.size.x * length(object.scale * local_orientation[0]), surface.size.y * length(object.scale * local_orientation[1]));
+
+                    RayCheck check = ray_check(normalized_position, world_orientation, ray_direction, size);
 
                     if (check.successful && check.distance > 0.0 && check.distance < nearest && last_nearest < check.distance) {
                         id = surface_id;
                         nearest = check.distance;
                         uv = check.uv;
                         type = RAY_TYPE_SURFACE;
+                        world_size = size;
                     }
                 }
             }
@@ -218,6 +263,7 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
         results[ray].uv = uv;
         results[ray].id = id;
         results[ray].type = type;
+        results[ray].world_size = world_size;
     }
     return results;
 }
@@ -225,15 +271,11 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
 void main() {
     const vec2 screen = vec2(screen_width, screen_height);
     const vec2 resolution = vec2(resolution_width, resolution_height);
-    vec2 rotated_coord = vec2(
-        gl_FragCoord.x * cos(-camera.rotation.z) - gl_FragCoord.y * sin(-camera.rotation.z),
-        gl_FragCoord.x * sin(-camera.rotation.z) + gl_FragCoord.y * cos(-camera.rotation.z)
-    );
 
     const vec2 scale = screen / resolution;
-    const vec2 pos = (floor(rotated_coord / scale) + 0.5) * scale;
+    const vec2 pos = (floor(gl_FragCoord.xy / scale) + 0.5) * scale;
 
-    const vec3 direction = direction_from_pixel(pos.x, pos.y);
+    const vec3 direction = direction_from_pixel(pos);
     RayResult ray_results[MAX_PIXEL_DEPTH] = ray(direction);
 
     vec4 screen_pixel = background;
@@ -244,18 +286,15 @@ void main() {
             break;
 
         Texture tex = textures[0];
-        vec2 size = vec2(0, 0);
 
         switch (result.type) {
             case RAY_TYPE_BILLBOARD:
             Billboard billboard = billboards[result.id];
             tex = textures[billboard.texture_id];
-            size = billboard.size;
             break;
             case RAY_TYPE_SURFACE:
             Surface surface = surfaces[result.id];
             tex = textures[surface.texture_id];
-            size = surface.size;
             break;
             case RAY_TYPE_SKYBOX:
             tex = textures[0];
@@ -268,14 +307,14 @@ void main() {
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
             uv_coord = vec2(
-                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / size.x) * 0.5 + 0.5),
-                    mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / size.y) * 0.5 + 0.5)
+                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / result.world_size.x) * 0.5 + 0.5),
+                    mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / result.world_size.y) * 0.5 + 0.5)
                 );
             break;
             case TEXTURE_TYPE_TILE:
             uv_coord = vec2(
-                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / size.x),
-                    mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / size.y)
+                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / result.world_size.x),
+                    mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / result.world_size.y)
                 );
             break;
         }

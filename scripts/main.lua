@@ -1,7 +1,7 @@
 local title = "real"
 local size = { x = 800, y = 600 }
 local fps = 120
-local resolution = { x = 480, y = 360 }
+local resolution = { x = 1080, y = 720 }
 local display_mode = DisplayMode.Windowed
 local texture_atlas_size = {x = 1024, y = 1024}
 local texture_atlas_count = 1
@@ -21,14 +21,16 @@ local texture_id = chive.createTexture(atlas_id, { x = 0, y = 0 }, { x = 1, y = 
     { r = 1, g = 1, b = 1, a = 1 }, { x = 1, y = 1 })
 local camera_id = chive.createCamera(cam_pos, cam_rot, 110)
 chive.setCurrentCamera(camera_id)
-local billboard_id = chive.createBillboard({ x = 0, y = 0, z = 0 }, { x = 0, y = 0, z = 0 }, 0, { x = 1, y = 1 }, texture_id)
-local surface_id = chive.createSurface({ x = 0, y = 0, z = 2 }, { x = 0, y = 0, z = 1 }, 0, { x = 2, y = 2 }, false, texture_id)
+local billboard_id = chive.createBillboard({ x = 0, y = 0, z = 0 }, { x = 0, y = 1, z = 0 }, 0, { x = 1, y = 1 }, texture_id)
+local surface_id = chive.createSurface({ x = 0, y = 0, z = 2 }, { x = 0, y = 0, z = -1 }, 0, { x = 2, y = 2 }, true, texture_id)
 
 local prefab_id = chive.createPrefab(surface_id, 1, billboard_id, 1)
-local object_id = chive.createObject(scene_id, { x = 0, y = 0, z = 2 }, { x = 0, y = 0, z = 0 }, { x = 1, y = 1, z = 1 }, prefab_id)
+local object_id = chive.createObject(scene_id, { x = 0, y = 0, z = 2 }, { x = 0, y = 0, z = 0 }, { x = 2, y = 1, z = 1 }, prefab_id)
 local locked = false
 local escape_pressed = false
 local last_mouse_pos = chive.getMousePos()
+
+local obj_rot = {x = 0, y = 0, z = 0}
 
 function Update(delta)
     size = chive.getWindowSize()
@@ -52,6 +54,9 @@ function Update(delta)
 
     last_mouse_pos = mouse_pos
 
+    vec3.addAssign(obj_rot, {x = 0, y = 0, z = delta * 10})
+    chive.setObjectRotation(object_id, scene_id, obj_rot);
+
     vec3.multiplyAssign(velocity, 0)
     if chive.getKeyDown(Key.w) then
         vec3.addAssign(velocity, { x = math.sin(cam_rot.y), y = 0, z = math.cos(cam_rot.y) })
@@ -70,6 +75,12 @@ function Update(delta)
     end
     if chive.getKeyDown(Key.left_shift) then
         vec3.subtractAssign(velocity, { x = 0, y = 1, z = 0 })
+    end
+    if chive.getKeyDown(Key.x) then
+        vec3.addAssign(cam_rot, { x = 0, y = 0, z = 2 * delta })
+    end
+    if chive.getKeyDown(Key.z) then
+        vec3.subtractAssign(cam_rot, { x = 0, y = 0, z = 2 * delta })
     end
     if chive.getKeyPressed(Key.t) then
         print("t")

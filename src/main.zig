@@ -16,9 +16,18 @@ const objects = @import("objects.zig");
 const vectors = @import("vectors.zig");
 const lua_funcs = @import("lua_funcs.zig");
 
-// figure out how to render objects with prefabs
-// do i need to retire prefabs entirely and just use a unique object system
-// make shader render objects (with surfaces and billboards with proper layering)
+// rotate surfaces and billboards around object
+// scale surfaces and billboards from object
+
+// skybox
+
+// ui
+
+// sound
+
+// physics / colliders
+
+// particles
 
 const chive_funcs = [_]zlua.FnReg{
     .{ .name = "setup", .func = zlua.wrap(setup) },
@@ -1220,7 +1229,7 @@ pub fn setObjectPosition(lua: *zlua.Lua) i32 {
     return 0;
 }
 
-/// lua: setObjectPosition fun(object_id: integer, scene_id: integer, rotation: Vec3)
+/// lua: setObjectRotation fun(object_id: integer, scene_id: integer, rotation: Vec3)
 pub fn setObjectRotation(lua: *zlua.Lua) i32 {
     const object_id = lua_funcs.pullUInt(lua, 1);
     const scene_id = lua_funcs.pullUInt(lua, 2);
