@@ -3,32 +3,27 @@ const mem = std.mem;
 const object_manager = @import("objects.zig");
 
 pub const Scene = struct {
-    objects: std.AutoArrayHashMap(u32, object_manager.Object),
-
-    next_object_id: u32 = 0,
+    loaded_objects: std.AutoArrayHashMap(u32, void),
 
     const Self = @This();
 
     pub fn init(allocator: mem.Allocator) !Self {
-        const objects: std.AutoArrayHashMap(u32, object_manager.Object) = .init(allocator);
+        const loaded_objects: std.AutoArrayHashMap(u32, void) = .init(allocator);
 
         return .{
-            .objects = objects,
+            .loaded_objects = loaded_objects,
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.objects.deinit();
+        self.loaded_objects.deinit();
     }
 
-    pub fn removeObject(self: *Self, object_id: u32) bool {
-        return self.*.objects.swapRemove(object_id);
+    pub fn unloadObject(self: *Self, object_id: u32) bool {
+        return self.*.loaded_objects.swapRemove(object_id);
     }
 
-    pub fn addObject(self: *Self, object: object_manager.Object) !u32 {
-        const id = self.next_object_id;
-        try self.objects.put(id, object);
-        self.*.next_object_id += 1;
-        return id;
+    pub fn loadObject(self: *Self, object_id: u32) !void {
+        try self.loaded_objects.put(object_id, {});
     }
 };

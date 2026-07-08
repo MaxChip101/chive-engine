@@ -1,7 +1,7 @@
 const std = @import("std");
 const math = std.math;
 
-const objects = @import("objects.zig");
+const object_manager = @import("object_manager.zig");
 const vectors = @import("vectors.zig");
 
 pub const RayResult = extern struct {

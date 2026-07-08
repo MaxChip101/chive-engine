@@ -1,6 +1,6 @@
 #version 450 core
 
-const uint RAY_PIXEL_DEPTH = 8;
+const uint RAY_PIXEL_DEPTH = 4;
 const uint SKYBOX_PIXEL_DEPTH = 1;
 const uint MAX_PIXEL_DEPTH = RAY_PIXEL_DEPTH + SKYBOX_PIXEL_DEPTH;
 
@@ -40,7 +40,6 @@ struct Billboard {
     vec3 lock_axis;
     uint texture_id;
     vec2 size;
-    //uint use_local_axis; // bool
     float _pad;
 };
 
@@ -215,13 +214,16 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
                     Billboard billboard = billboards[billboard_id];
                     vec3 normalized_position = object.position + object_rotation * (billboard.position * object.scale);
                     vec3 direction = normalize(camera.position - normalized_position);
-                    if (billboard.lock_axis != vec3(0, 0, 0)) {
-                        direction = normalize(direction - dot(direction, billboard.lock_axis) * billboard.lock_axis);
+                    vec3 lock_axis = billboard.lock_axis;
+                    if (lock_axis != vec3(0, 0, 0)) {
+                        lock_axis = normalize(object_rotation * lock_axis);
+                        direction = normalize(direction - dot(direction, lock_axis) * lock_axis);
                     }
-                    // make local or world lock based on value
+                    
+
                     mat3 world_orientation = basis_from_normal(direction, billboard.rotation);
 
-                    vec2 size = vec2(billboard.size.x * length(object.scale * world_orientation[0]), billboard.size.y * length(object.scale * world_orientation[1]));
+                    vec2 size = vec2(billboard.size.x * length(object.scale * world_orientation[0]), billboard.size.y * length(object.scale * world_orientation[1])) * 0.5;
 
                     RayCheck check = ray_check(normalized_position, world_orientation, ray_direction, size);
 
@@ -242,7 +244,7 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
                     vec3 normalized_position = object.position + object_rotation * (surface.position * object.scale);
                     mat3 local_orientation = basis_from_normal(surface.normal, surface.rotation);
                     mat3 world_orientation = object_rotation * local_orientation;
-                    vec2 size = vec2(surface.size.x * length(object.scale * local_orientation[0]), surface.size.y * length(object.scale * local_orientation[1]));
+                    vec2 size = vec2(surface.size.x * length(object.scale * local_orientation[0]), surface.size.y * length(object.scale * local_orientation[1])) * 0.5;
 
                     RayCheck check = ray_check(normalized_position, world_orientation, ray_direction, size);
 
