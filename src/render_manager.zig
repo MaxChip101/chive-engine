@@ -10,6 +10,7 @@ const object_manager = @import("object_manager.zig");
 const scene_manager = @import("scene_manager.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
+const tools = @import("tools.zig");
 
 pub const DisplayMode = enum(u32) {
     Windowed = 0,
@@ -41,17 +42,23 @@ pub const Renderer = struct {
     resolution_width: u32,
     resolution_height: u32,
 
+    loaded_object_size: usize,
+    object_size: usize,
+    prefab_size: usize,
+    billboard_size: usize,
+    surface_size: usize,
+    texture_size: usize,
+    texture_atlas_sizes_size: usize,
+
     display_mode: DisplayMode,
 
-    next_texture_id: u32,
-    texture_atlases: std.AutoArrayHashMap(u32, []u8),
-    texture_atlas_sizes: std.AutoArrayHashMap(u32, vectors.Vec2),
-    texture_objects: std.AutoArrayHashMap(u32, object_manager.Texture),
+    texture_atlases: tools.IDMap([]u8),
+    texture_atlas_sizes: tools.IDMap(vectors.Vec2),
+    texture_objects: tools.IDMap(object_manager.Texture),
 
     texture_atlas: gl.Texture,
     texture_atlas_width: u32,
     texture_atlas_height: u32,
-    next_texture_atlas_id: u32,
 
     width_loc: ?u32,
     height_loc: ?u32,
@@ -117,10 +124,6 @@ pub const Renderer = struct {
         const window = glfw.Window.create(window_width, window_height, title, monitor, null, hints) orelse {
             return error.GLFWWindowCreateFailed;
         };
-
-        // if (display_mode == .BorderlessWindowed) {
-        //     window.setAttrib(.decorated, false);
-        // }
 
         glfw.makeContextCurrent(window);
         //glfw.swapInterval(1);
@@ -269,9 +272,9 @@ pub const Renderer = struct {
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest_mipmap_linear);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
-        const texture_objects: std.AutoArrayHashMap(u32, object_manager.Texture) = .init(allocator);
-        const texture_atlases: std.AutoArrayHashMap(u32, []u8) = .init(allocator);
-        const texture_atlas_sizes: std.AutoArrayHashMap(u32, []u8) = .init(allocator); // how to sync texture atlas id with the sizes
+        const texture_objects: tools.IDMap(object_manager.Texture) = .init(allocator);
+        const texture_atlases: tools.IDMap([]u8) = .init(allocator);
+        const texture_atlas_sizes: tools.IDMap([]u8) = .init(allocator);
 
         return .{
             .allocator = allocator,
@@ -285,8 +288,6 @@ pub const Renderer = struct {
             .texture_atlas = texture_atlas,
             .texture_atlas_width = 0,
             .texture_atlas_height = 0,
-            .next_texture_atlas_id = 0,
-            .next_texture_id = 0,
             .texture_objects = texture_objects,
             .texture_atlases = texture_atlases,
             .texture_atlas_sizes = texture_atlas_sizes,
@@ -300,6 +301,13 @@ pub const Renderer = struct {
             .prefabSSBO = prefabSSBO,
             .textureSSBO = textureSSBO,
             .cameraSSBO = cameraSSBO,
+            .loaded_object_size = 0,
+            .object_size = 0,
+            .prefab_size = 0,
+            .billboard_size = 0,
+            .surface_size = 0,
+            .texture_size = 0,
+            .texture_atlas_sizes_size = 0,
             .resolution_width = resolution_width,
             .resolution_height = resolution_height,
             .width_loc = width_loc,
@@ -317,6 +325,7 @@ pub const Renderer = struct {
         gl.deleteProgram(self.shaderProgram);
         gl.deleteVertexArray(self.VAO);
         gl.deleteBuffer(self.VBO);
+        gl.deleteBuffer(self.textureAtlasSizeSSBO);
         gl.deleteBuffer(self.objectSSBO);
         gl.deleteBuffer(self.prefabSSBO);
         gl.deleteBuffer(self.surfaceSSBO);
@@ -413,7 +422,7 @@ pub const Renderer = struct {
             .rgba8,
             self.texture_atlas_width,
             self.texture_atlas_height,
-            self.next_texture_atlas_id,
+            self.texture_atlases.size(),
             .rgba,
             .unsigned_byte,
             null,
@@ -428,38 +437,52 @@ pub const Renderer = struct {
     }
 
     pub fn loadTextureAtlas(self: *Self, width: u32, height: u32, data: []const u8) !u32 {
-        if (width > self.texture_atlas_width or height > self.texture_atlas_height) {
-            self.*.texture_atlas_width = width;
-            self.*.texture_atlas_height = height;
-        }
+        if (width > self.texture_atlas_width) self.*.texture_atlas_width = width;
+        if (width > self.texture_atlas_height) self.*.texture_atlas_height = height;
 
-        const id = self.next_texture_atlas_id;
-        self.*.next_texture_atlas_id += 1;
-
-        try self.*.texture_atlases.put(id, data);
+        const id = try self.*.texture_atlases.create(data);
+        _ = try self.*.texture_atlas_sizes.create(vectors.Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) });
 
         growTextureAtlas(self);
 
         return id;
     }
 
-    pub fn updateTextureAtlas(self: *Self, atlas_id: u32, data: []const u8) !void {
-        if (atlas_id >= self.next_texture_atlas_id) return error.InvalidAtlasID;
-
-        try self.*.texture_atlases.put(atlas_id, data);
+    pub fn unloadTextureAtlas(self: *Self, atlas_id: u32) !void {
+        try self.*.texture_atlases.delete(atlas_id);
+        try self.*.texture_atlas_sizes.delete(atlas_id);
 
         subTextureAtlas(self, atlas_id);
     }
 
-    pub fn addTexture(self: *Self, texture: object_manager.Texture) !u32 {
-        const id = self.next_texture_id;
-        try self.texture_objects.put(id, texture);
-        self.*.next_texture_id += 1;
-        return id;
+    pub fn updateTextureAtlas(self: *Self, atlas_id: u32, width: u32, height: u32, data: []const u8) !void {
+        try self.*.texture_atlases.set(atlas_id, data);
+        try self.*.texture_atlas_sizes.set(atlas_id, vectors.Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) });
+
+        const changed = false;
+
+        if (width > self.texture_atlas_width) {
+            self.*.texture_atlas_width = width;
+            changed = true;
+        }
+        if (height > self.texture_atlas_height) {
+            self.*.texture_atlas_height = height;
+            changed = true;
+        }
+
+        if (changed) {
+            growTextureAtlas(self);
+        } else {
+            subTextureAtlas(self, atlas_id);
+        }
     }
 
-    pub fn removeTexture(self: *Self, texture_id: u32) bool {
-        return self.*.texture_objects.swapRemove(texture_id);
+    pub fn addTexture(self: *Self, texture: object_manager.Texture) !u32 {
+        return try self.*.texture_objects.create(texture);
+    }
+
+    pub fn removeTexture(self: *Self, texture_id: u32) !void {
+        try self.*.texture_objects.delete(texture_id);
     }
 
     fn renderUpdate(self: *Self, camera: *object_manager.Camera) void {
@@ -472,35 +495,69 @@ pub const Renderer = struct {
 
     pub fn renderScene(self: *Self, camera: *object_manager.Camera, scene: scene_manager.Scene, prefabs: []object_manager.Prefab, objects: []object_manager.Object, surfaces: []object_manager.Surface, billboards: []object_manager.Billboard) void {
         const loaded_objects = scene.loaded_objects.keys();
-        const loaded_objects_count = loaded_objects.len;
-        const textures = self.texture_objects.values();
-        const texture_atlas_sizes = self.texture_atlas_sizes.values();
+        const textures = self.texture_objects.toSlice();
+        const texture_atlas_sizes = self.texture_atlas_sizes.toSlice();
 
         self.renderUpdate(camera);
-
-        gl.bindBuffer(self.textureAtlasSizeSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, vectors.Vec2, texture_atlas_sizes, .dynamic_draw);
-
-        gl.bindBuffer(self.surfaceSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, object_manager.Surface, surfaces, .dynamic_draw);
-
-        gl.bindBuffer(self.billboardSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, object_manager.Billboard, billboards, .dynamic_draw);
 
         gl.bindBuffer(self.cameraSSBO, .shader_storage_buffer);
         gl.bufferSubData(.shader_storage_buffer, object_manager.Camera, &[_]object_manager.Camera{camera.*}, .dynamic_draw);
 
+        gl.bindBuffer(self.textureAtlasSizeSSBO, .shader_storage_buffer);
+        if (texture_atlas_sizes.len > self.texture_atlas_sizes_size) {
+            self.*.texture_atlas_sizes_size = texture_atlas_sizes.len;
+            gl.bufferData(.shader_storage_buffer, vectors.Vec2, texture_atlas_sizes, .dynamic_draw);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, vectors.Vec2, texture_atlas_sizes);
+        }
+
+        gl.bindBuffer(self.surfaceSSBO, .shader_storage_buffer);
+        if (surfaces.len > self.surface_size) {
+            self.*.surface_size = surfaces.len;
+            gl.bufferData(.shader_storage_buffer, object_manager.Surface, surfaces, .dynamic_draw);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, object_manager.Surface, surfaces);
+        }
+
+        gl.bindBuffer(self.billboardSSBO, .shader_storage_buffer);
+        if (billboards.len > self.billboard_size) {
+            self.*.billboard_size = billboards.len;
+            gl.bufferData(.shader_storage_buffer, object_manager.Billboard, billboards, .dynamic_draw);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, object_manager.Billboard, billboards);
+        }
+
         gl.bindBuffer(self.textureSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, object_manager.Texture, textures, .dynamic_draw);
+        if (textures.len > self.texture_size) {
+            self.*.texture_size = textures.len;
+            gl.bufferData(.shader_storage_buffer, object_manager.Texture, textures, .dynamic_draw);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, object_manager.Texture, textures);
+        }
 
         gl.bindBuffer(self.prefabSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, object_manager.Prefab, prefabs, .dynamic_draw);
+        if (prefabs.len > self.prefab_size) {
+            self.*.prefab_size = prefabs.len;
+            gl.bufferData(.shader_storage_buffer, object_manager.Prefab, prefabs, .dynamic_draw);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, object_manager.Prefab, prefabs);
+        }
 
         gl.bindBuffer(self.objectSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, object_manager.Object, objects, .dynamic_draw);
+        if (objects.len > self.object_size) {
+            self.*.object_size = objects.len;
+            gl.bufferData(.shader_storage_buffer, object_manager.Object, objects, .dynamic_draw);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, object_manager.Object, objects);
+        }
 
         gl.bindBuffer(self.loadedObjectSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, u32, loaded_objects, .dynamic_draw);
+        if (loaded_objects.len > self.loaded_object_size) {
+            self.*.loaded_object_size = loaded_objects.len;
+            gl.bufferData(.shader_storage_buffer, 0, u32, loaded_objects);
+        } else {
+            gl.bufferSubData(.shader_storage_buffer, 0, u32, loaded_objects);
+        }
 
         gl.bindBuffer(gl.Buffer.invalid, .shader_storage_buffer);
 
@@ -511,7 +568,7 @@ pub const Renderer = struct {
 
         gl.uniform1i(self.width_loc, @intCast(self.width));
         gl.uniform1i(self.height_loc, @intCast(self.height));
-        gl.uniform1ui(self.loaded_object_count_loc, @intCast(loaded_objects_count));
+        gl.uniform1ui(self.loaded_object_count_loc, @intCast(loaded_objects.len));
         gl.uniform1ui(self.resolution_width_loc, self.resolution_width);
         gl.uniform1ui(self.resolution_height_loc, self.resolution_height);
 

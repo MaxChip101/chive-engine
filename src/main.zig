@@ -16,16 +16,6 @@ const object_manager = @import("object_manager.zig");
 const vectors = @import("vectors.zig");
 const lua_funcs = @import("lua_funcs.zig");
 
-// optimize buffering of data
-// only buffer data when new objects are created
-// use sub buffer to update
-// use loaded id method
-// make texture atlases dynamic
-// each texture atlas has a size
-// in the shader, it uses the size to get the actual texture to ensure no null pixels get drawn
-// texture atlases get stored in a map
-// the map gets subbed into texture atlas
-//
 // precompute some values that are constant from pixel to pixel
 // try to switch to using quaternions instead of euler
 // optimize rendering to use culling techniques that are cheap and effective
@@ -39,6 +29,8 @@ const lua_funcs = @import("lua_funcs.zig");
 // physics / colliders
 
 // particles
+
+// lighting + reflections + ray manipulation / transformation + draw feedback (render to texture element or give pixel data)
 
 const chive_funcs = [_]zlua.FnReg{
     .{ .name = "setup", .func = zlua.wrap(setup) },
@@ -186,18 +178,13 @@ const stack_top_idx = -1;
 var allocator: mem.Allocator = undefined;
 var renderer: render_manager.Renderer = undefined;
 var setup_called = false;
-var next_scene_id: u32 = 0;
-var next_camera_id: u32 = 0;
-var next_surface_id: u32 = 0;
-var next_billboard_id: u32 = 0;
-var next_prefab_id: u32 = 0;
-// all of these have to use tools.IDMap
-var scenes: std.AutoArrayHashMap(u32, scene_manager.Scene) = undefined;
-var prefabs: std.AutoArrayHashMap(u32, object_manager.Prefab) = undefined;
-var objects: std.AutoArrayHashMap(u32, object_manager.Object) = undefined;
-var cameras: std.AutoArrayHashMap(u32, object_manager.Camera) = undefined;
-var surfaces: std.AutoArrayHashMap(u32, object_manager.Surface) = undefined;
-var billboards: std.AutoArrayHashMap(u32, object_manager.Billboard) = undefined;
+
+var scenes: tools.IDMap(scene_manager.Scene) = undefined;
+var prefabs: tools.IDMap(object_manager.Prefab) = undefined;
+var objects: tools.IDMap(object_manager.Object) = undefined;
+var cameras: tools.IDMap(object_manager.Camera) = undefined;
+var surfaces: tools.IDMap(object_manager.Surface) = undefined;
+var billboards: tools.IDMap(object_manager.Billboard) = undefined;
 var keys: std.AutoHashMap(glfw.Key, bool) = undefined;
 var mouse_buttons: std.AutoHashMap(glfw.MouseButton, bool) = undefined;
 
@@ -207,6 +194,11 @@ var current_scene: u32 = 0;
 var current_camera: u32 = 0;
 
 var scroll = vectors.Vec2.zero;
+
+// update lua api
+// implement all missing features from renderer, etc.
+// try to make it easier to add lua stuff to api
+// rework api?
 
 pub fn main() !void {
     var gpa = heap.GeneralPurposeAllocator(.{}){};
@@ -340,7 +332,7 @@ pub fn main() !void {
             continue;
         };
 
-        renderer.renderScene(camera, scene, prefabs.values(), surfaces.values(), billboards.values());
+        renderer.renderScene(camera, scene, prefabs.toSlice(), surfaces.toSlice(), objects.toSlice(), billboards.toSlice());
     }
 }
 
@@ -350,7 +342,7 @@ fn scrollCallback(window: glfw.Window, xoffset: f64, yoffset: f64) void {
     scroll.y = @floatCast(yoffset);
 }
 
-/// lua: setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: Vec2, max_texture_atlases: integer)
+/// lua: setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2)
 pub fn setup(lua: *zlua.Lua) i32 {
     if (setup_called) {
         log.warn("Setup Was Already Called", .{});

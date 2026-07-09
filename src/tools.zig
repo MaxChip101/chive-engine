@@ -56,6 +56,10 @@ pub fn IDMap(comptime T: type) type {
             return self.values[id];
         }
 
+        pub fn size(self: Self) u32 {
+            return self.values.len;
+        }
+
         pub fn getPtr(self: *Self, id: u32) ?*T {
             if (id >= self.values.len or !self.active[id]) return null;
             return &self.values[id];

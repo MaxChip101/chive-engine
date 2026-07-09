@@ -43,7 +43,6 @@ struct Billboard {
     float _pad;
 };
 
-// impl use local axis
 // cache some things by calculating it on the gpu like:
 // rotation matrix
 // basis matrix
@@ -91,34 +90,39 @@ layout(std430, binding = 0) readonly buffer CameraBuffer {
     Camera camera;
 };
 
-layout(std430, binding = 1) readonly buffer TextureBuffer {
+layout(std430, binding = 1) readonly buffer TexAtlasSizeBuffer {
+    vec2 tex_atlas_sizes[];
+};
+
+layout(std430, binding = 2) readonly buffer TextureBuffer {
     Texture textures[];
 };
 
-layout(std430, binding = 2) readonly buffer SurfaceBuffer {
+layout(std430, binding = 3) readonly buffer SurfaceBuffer {
     Surface surfaces[];
 };
 
-layout(std430, binding = 3) readonly buffer BillboardBuffer {
+layout(std430, binding = 4) readonly buffer BillboardBuffer {
     Billboard billboards[];
 };
 
-layout(std430, binding = 4) readonly buffer PrefabBuffer {
+layout(std430, binding = 5) readonly buffer PrefabBuffer {
     Prefab prefabs[];
 };
 
-layout(std430, binding = 5) readonly buffer ObjectBuffer {
+layout(std430, binding = 6) readonly buffer ObjectBuffer {
     Object objects[];
+};
+
+layout(std430, binding = 7) readonly buffer LoadedObjectBuffer {
+    uint loaded_objects[];
 };
 
 uniform sampler2DArray texture_atlas;
 
 uniform int screen_width;
 uniform int screen_height;
-uniform uint surface_count;
-uniform uint billboard_count;
-uniform uint prefab_count;
-uniform uint object_count;
+uniform uint loaded_object_count;
 uniform uint resolution_width;
 uniform uint resolution_height;
 
@@ -202,8 +206,8 @@ RayResult[MAX_PIXEL_DEPTH] ray(vec3 ray_direction) {
         vec2 uv = vec2(-1, -1);
         vec2 world_size = vec2(0, 0);
 
-        for (uint object_id = 0; object_id < object_count; object_id++) {
-
+        for (uint loaded_object_id = 0; loaded_object_id < loaded_object_count; loaded_object_id++) {
+            uint object_id = loaded_objects[loaded_object_id];
             Object object = objects[object_id];
             Prefab prefab = prefabs[object.prefab_id];
 
@@ -304,8 +308,14 @@ void main() {
             break;
         }
 
+        vec2 atlas_size = tex_atlas_sizes[tex.atlas_id];
+        vec2 layer_size = vec2(textureSize(texture_atlas, 0).xy);
+        vec2 atlas_scale = atlas_size / layer_size;
+
         vec2 uv_coord;
 
+
+        // apply sizes to uv coords
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
             uv_coord = vec2(
