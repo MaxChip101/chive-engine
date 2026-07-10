@@ -43,6 +43,13 @@ struct Billboard {
     float _pad;
 };
 
+// use a compute shader for raytracing
+// fragment shader only for rendering
+
+// use quaternions
+
+// some things can just be matricies in of themselves
+
 // cache some things by calculating it on the gpu like:
 // rotation matrix
 // basis matrix
@@ -312,22 +319,27 @@ void main() {
         vec2 layer_size = vec2(textureSize(texture_atlas, 0).xy);
         vec2 atlas_scale = atlas_size / layer_size;
 
+        vec2 real_uv_max = tex.uv_min + (tex.uv_max - tex.uv_min) * atlas_scale;
+
         vec2 uv_coord;
 
-
-        // apply sizes to uv coords
         switch (tex.type) {
             case TEXTURE_TYPE_STRETCH:
+            vec2 stretched_uv = result.uv / result.world_size * 0.5 + vec2(0.5);
+
             uv_coord = vec2(
-                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, (result.uv.x / result.world_size.x) * 0.5 + 0.5),
-                    mix(tex.uv_min.y, tex.uv_max.y, (result.uv.y / result.world_size.y) * 0.5 + 0.5)
-                );
+                1.0 - mix(tex.uv_min.x, real_uv_max.x, stretched_uv.x),
+                mix(tex.uv_min.y, real_uv_max.y, stretched_uv.y)
+            );
             break;
             case TEXTURE_TYPE_TILE:
+
+            vec2 tiled_uv = fract(result.uv / tex.size + vec2(0.5));
+
             uv_coord = vec2(
-                    1.0 - mix(tex.uv_min.x, tex.uv_max.x, result.uv.x / result.world_size.x),
-                    mix(tex.uv_min.y, tex.uv_max.y, result.uv.y / result.world_size.y)
-                );
+                1.0 - mix(tex.uv_min.x, real_uv_max.x, tiled_uv.x),
+                mix(tex.uv_min.y, real_uv_max.y, tiled_uv.y)
+            );
             break;
         }
 

@@ -272,7 +272,7 @@ vec2 = vec2
 vec3 = vec3
 
 ---@class chive
----@field setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2, texture_atlas_size: Vec2, max_texture_atlases: integer)
+---@field setup fun(title: string, size: Vec2, display_mode: integer, resolution: Vec2)
 ---@field setDisplayMode fun(display_mode: integer)
 ---@field setResizable fun(resizable: boolean)
 ---@field setTitle fun(title: string)
@@ -304,10 +304,13 @@ vec3 = vec3
 ---@field setTextureAtlasID fun(texture_id: integer, atlas_id: integer)
 ---@field deleteTexture fun(texture_id: integer): boolean
 ---@field loadTextureAtlasPath fun(atlas_path: string): integer
+---@field updateTextureAtlasPath fun(atlas_id: integer, atlas_path: string)
+---@field unloadTextureAtlas fun(atlas_id: integer): boolean
 ---@field getSurfaceIDs fun(): integer[]
 ---@field getBillboardIDs fun(): integer[]
 ---@field getPrefabIDs fun(): integer[]
----@field getObjectIDs fun(scene_id: integer): integer[]
+---@field getObjectIDs fun(): integer[]
+---@field getLoadedObjectIDs fun(scene_id: integer): integer[]
 ---@field createPrefab fun(surface_start: integer, surface_length: integer, billboard_start: integer, billboard_length: integer): integer
 ---@field getPrefabSurfaceStart fun(prefab_id: integer): integer
 ---@field getPrefabSurfaceLength fun(prefab_id: integer): integer
@@ -318,17 +321,19 @@ vec3 = vec3
 ---@field setPrefabBillboardStart fun(prefab_id: integer, billboard_start: integer)
 ---@field setPrefabBillboardLength fun(prefab_id: integer, billboard_length: integer)
 ---@field deletePrefab fun(prefab_id: integer): boolean
----@field createObject fun(scene_id: integer, position: Vec3, rotation: Vec3, scale: Vec3, prefab_id: integer): integer
----@field getObjectPosition fun(object_id: integer, scene_id: integer): Vec3
----@field getObjectRotation fun(object_id: integer, scene_id: integer): Vec3
----@field getObjectRadRotation fun(object_id: integer, scene_id: integer): Vec3
----@field getObjectScale fun(object_id: integer, scene_id: integer): Vec3
----@field getObjectPrefabID fun(object_id: integer, scene_id: integer): integer
----@field setObjectPosition fun(object_id: integer, scene_id: integer, position: Vec3)
----@field setObjectRotation fun(object_id: integer, scene_id: integer, rotation: Vec3)
----@field setObjectRadRotation fun(object_id: integer, scene_id: integer, rad_rotation: Vec3)
----@field setObjectPosition fun(object_id: integer, scene_id: integer, scale: Vec3)
----@field setObjectPrefabID fun(object_id: integer, scene_id: integer, prefab_id: integer)
+---@field loadObject fun(object_id: integer, scene_id: integer)
+---@field unloadObject fun(object_id: integer, scene_id: integer): boolean
+---@field createObject fun(prefab_id: integer, position: Vec3, rotation: Vec3, scale: Vec3): integer
+---@field getObjectPosition fun(object_id: integer): Vec3
+---@field getObjectRotation fun(object_id: integer): Vec3
+---@field getObjectRadRotation fun(object_id: integer): Vec3
+---@field getObjectScale fun(object_id: integer): Vec3
+---@field getObjectPrefabID fun(object_id: integer): integer
+---@field setObjectPosition fun(object_id: integer, position: Vec3)
+---@field setObjectRotation fun(object_id: integer, rotation: Vec3)
+---@field setObjectRadRotation fun(object_id: integer, rad_rotation: Vec3)
+---@field setObjectScale fun(object_id: integer, scale: Vec3)
+---@field setObjectPrefabID fun(object_id: integer, prefab_id: integer)
 ---@field deleteObject fun(object_id: integer, scene_id: integer): boolean
 ---@field createBillboard fun(position: Vec3, lock_axis: Vec3, rotation: number, size: Vec2, texture_id: integer): integer
 ---@field getBillboardPosition fun(billboard_id: integer): Vec3

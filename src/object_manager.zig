@@ -168,7 +168,7 @@ pub const Object = extern struct {
 
     const Self = @This();
 
-    pub fn init(position: vectors.Vec3, rotation: vectors.Vec3, scale: vectors.Vec3, prefab_id: u32) Self {
+    pub fn init(prefab_id: u32, position: vectors.Vec3, rotation: vectors.Vec3, scale: vectors.Vec3) Self {
         return .{
             .position = position,
             .rotation = vectors.Vec3{ .x = math.degreesToRadians(rotation.x), .y = math.degreesToRadians(rotation.y), .z = math.degreesToRadians(rotation.z) },

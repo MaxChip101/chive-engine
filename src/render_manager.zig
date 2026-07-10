@@ -10,7 +10,7 @@ const object_manager = @import("object_manager.zig");
 const scene_manager = @import("scene_manager.zig");
 const physics = @import("physics.zig");
 const vectors = @import("vectors.zig");
-const tools = @import("tools.zig");
+const engine_tools = @import("engine_tools.zig");
 
 pub const DisplayMode = enum(u32) {
     Windowed = 0,
@@ -52,9 +52,9 @@ pub const Renderer = struct {
 
     display_mode: DisplayMode,
 
-    texture_atlases: tools.IDMap([]u8),
-    texture_atlas_sizes: tools.IDMap(vectors.Vec2),
-    texture_objects: tools.IDMap(object_manager.Texture),
+    texture_atlases: engine_tools.IDMap([]const u8),
+    texture_atlas_sizes: engine_tools.IDMap(vectors.Vec2),
+    texture_objects: engine_tools.IDMap(object_manager.Texture),
 
     texture_atlas: gl.Texture,
     texture_atlas_width: u32,
@@ -126,7 +126,7 @@ pub const Renderer = struct {
         };
 
         glfw.makeContextCurrent(window);
-        //glfw.swapInterval(1);
+        glfw.swapInterval(1);
         glfw.Window.setFramebufferSizeCallback(window, framebuffer_size_callback);
 
         const proc: glfw.GLProc = undefined;
@@ -272,9 +272,9 @@ pub const Renderer = struct {
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest_mipmap_linear);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
-        const texture_objects: tools.IDMap(object_manager.Texture) = .init(allocator);
-        const texture_atlases: tools.IDMap([]u8) = .init(allocator);
-        const texture_atlas_sizes: tools.IDMap([]u8) = .init(allocator);
+        const texture_objects: engine_tools.IDMap(object_manager.Texture) = .init(allocator);
+        const texture_atlases: engine_tools.IDMap([]const u8) = .init(allocator);
+        const texture_atlas_sizes: engine_tools.IDMap(vectors.Vec2) = .init(allocator);
 
         return .{
             .allocator = allocator,
@@ -407,7 +407,7 @@ pub const Renderer = struct {
             1,
             .rgba,
             .unsigned_byte,
-            data,
+            data.ptr,
         );
         gl.generateMipmap(.@"2d_array");
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest);
@@ -431,8 +431,8 @@ pub const Renderer = struct {
         gl.texParameter(.@"2d_array", .min_filter, gl.TextureParameterType(.min_filter).nearest_mipmap_linear);
         gl.texParameter(.@"2d_array", .mag_filter, gl.TextureParameterType(.mag_filter).nearest);
 
-        for (0..self.next_texture_atlas_id) |id| {
-            subTextureAtlas(self, id);
+        for (0..self.texture_atlases.size()) |id| {
+            subTextureAtlas(self, @intCast(id));
         }
     }
 
@@ -459,7 +459,7 @@ pub const Renderer = struct {
         try self.*.texture_atlases.set(atlas_id, data);
         try self.*.texture_atlas_sizes.set(atlas_id, vectors.Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) });
 
-        const changed = false;
+        var changed = false;
 
         if (width > self.texture_atlas_width) {
             self.*.texture_atlas_width = width;
@@ -501,7 +501,7 @@ pub const Renderer = struct {
         self.renderUpdate(camera);
 
         gl.bindBuffer(self.cameraSSBO, .shader_storage_buffer);
-        gl.bufferSubData(.shader_storage_buffer, object_manager.Camera, &[_]object_manager.Camera{camera.*}, .dynamic_draw);
+        gl.bufferSubData(.shader_storage_buffer, 0, object_manager.Camera, &[_]object_manager.Camera{camera.*});
 
         gl.bindBuffer(self.textureAtlasSizeSSBO, .shader_storage_buffer);
         if (texture_atlas_sizes.len > self.texture_atlas_sizes_size) {
@@ -554,7 +554,7 @@ pub const Renderer = struct {
         gl.bindBuffer(self.loadedObjectSSBO, .shader_storage_buffer);
         if (loaded_objects.len > self.loaded_object_size) {
             self.*.loaded_object_size = loaded_objects.len;
-            gl.bufferData(.shader_storage_buffer, 0, u32, loaded_objects);
+            gl.bufferData(.shader_storage_buffer, u32, loaded_objects, .dynamic_draw);
         } else {
             gl.bufferSubData(.shader_storage_buffer, 0, u32, loaded_objects);
         }

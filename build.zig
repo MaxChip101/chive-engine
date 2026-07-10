@@ -51,8 +51,8 @@ pub fn build(b: *std.Build) void {
     gen.root_module.addImport("types", b.createModule(.{
         .root_source_file = b.path("src/gen_types.zig"),
     }));
-    gen.root_module.addImport("tools", b.createModule(.{
-        .root_source_file = b.path("src/tools.zig"),
+    gen.root_module.addImport("engine_tools", b.createModule(.{
+        .root_source_file = b.path("src/engine_tools.zig"),
     }));
 
     const run_gen = b.addRunArtifact(gen);

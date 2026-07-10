@@ -1,6 +1,6 @@
 const std = @import("std");
 const mem = std.mem;
-const object_manager = @import("objects.zig");
+const object_manager = @import("object_manager.zig");
 
 pub const Scene = struct {
     loaded_objects: std.AutoArrayHashMap(u32, void),
